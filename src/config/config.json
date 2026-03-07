@@ -59,12 +59,22 @@
       "tag": "notelab/capture"
     },
     "quickLaunch": {
-      "bookmarks": [
-        { "name": "GitHub", "icon": "\u2b21", "color": "#e0e6ed", "type": "url", "target": "https://github.com" },
-        { "name": "YouTube", "icon": "\u25b6", "color": "#e74c3c", "type": "url", "target": "https://youtube.com" },
-        { "name": "Slack", "icon": "\ud83d\udcac", "color": "#7c6bff", "type": "app", "target": "Slack" },
-        { "name": "Cursor", "icon": "\u25b8", "color": "#44c98f", "type": "app", "target": "Cursor" },
-        { "name": "Terminal", "icon": "\u25aa", "color": "#00d4ff", "type": "app", "target": "Terminal" }
+      "groups": [
+        {
+          "name": "Development",
+          "bookmarks": [
+            { "name": "Cursor", "icon": "\u25b8", "color": "#44c98f", "type": "app", "target": "Cursor" },
+            { "name": "Terminal", "icon": "\u25aa", "color": "#00d4ff", "type": "app", "target": "Terminal" }
+          ]
+        },
+        {
+          "name": "Web",
+          "bookmarks": [
+            { "name": "GitHub", "icon": "\u2b21", "color": "#e0e6ed", "type": "url", "target": "https://github.com" },
+            { "name": "YouTube", "icon": "\u25b6", "color": "#e74c3c", "type": "url", "target": "https://youtube.com" },
+            { "name": "Slack", "icon": "\ud83d\udcac", "color": "#7c6bff", "type": "app", "target": "Slack" }
+          ]
+        }
       ]
     },
     "missionControl": {

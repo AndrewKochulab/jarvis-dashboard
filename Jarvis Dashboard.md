@@ -175,9 +175,10 @@ const ro = new ResizeObserver(() => {
   if (ctx._agentsGrid) ctx._agentsGrid.style.gridTemplateColumns = narrow ? "1fr" : (wide ? "repeat(3, 1fr)" : "1fr");
   if (ctx._diagGrid) ctx._diagGrid.style.gridTemplateColumns = narrow ? "repeat(2, 1fr)" : "repeat(4, 1fr)";
   if (ctx._analyticsGrid) ctx._analyticsGrid.style.gridTemplateColumns = narrow ? "1fr" : "repeat(3, 1fr)";
-  if (ctx._bookmarksGrid) {
-    const bmCount = config.widgets?.quickLaunch?.bookmarks?.length || 5;
-    ctx._bookmarksGrid.style.gridTemplateColumns = narrow ? "repeat(3, 1fr)" : `repeat(${Math.min(bmCount, 5)}, 1fr)`;
+  if (ctx._bookmarkGroups) {
+    ctx._bookmarkGroups.forEach(ref => {
+      ref.el.style.gridTemplateColumns = narrow ? "repeat(3, 1fr)" : `repeat(${Math.min(ref.count, 4)}, 1fr)`;
+    });
   }
 
   gridRefs.forEach(ref => {

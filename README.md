@@ -51,7 +51,7 @@
 
 ### Navigation & Shortcuts
 - **Communication Link** — Terminal-style widget to launch Claude Code directly from Obsidian
-- **Quick Launch** — Configurable bookmark grid for apps and URLs
+- **Quick Launch** — Configurable bookmark grid for apps and URLs with optional group headers
 - **Mission Control** — Navigation hub linking to other vault dashboards
 - **Recent Activity** — Feed of recently modified vault files
 
@@ -227,7 +227,29 @@ Or use **auto-scan** to discover all projects automatically:
 
 ### 2. Customize Your Bookmarks
 
-Edit the Quick Launch bookmarks in `config.json`:
+Edit the Quick Launch bookmarks in `config.json`. You can organize them into **groups** — headers appear automatically when you have multiple groups:
+
+```json
+"quickLaunch": {
+  "groups": [
+    {
+      "name": "Development",
+      "bookmarks": [
+        { "name": "Cursor", "icon": "\u25b8", "color": "#44c98f", "type": "app", "target": "Cursor" },
+        { "name": "Xcode", "icon": "\ud83d\udd28", "color": "#56cfe1", "type": "app", "target": "Xcode" }
+      ]
+    },
+    {
+      "name": "Web",
+      "bookmarks": [
+        { "name": "GitHub", "icon": "\u2b21", "color": "#e0e6ed", "type": "url", "target": "https://github.com" }
+      ]
+    }
+  ]
+}
+```
+
+With a single group, headers are hidden and it renders as a flat grid. The legacy flat format is also supported:
 
 ```json
 "quickLaunch": {
@@ -639,7 +661,7 @@ jarvis_dashboard/
       communication-link.js         Terminal widget
       focus-timer.js                Pomodoro timer
       quick-capture.js              Note capture
-      quick-launch.js               Bookmark grid
+      quick-launch.js               Bookmark grid (grouped or flat)
       mission-control.js            Navigation hub
       recent-activity.js            Recent files feed
       footer.js                     Summary footer
