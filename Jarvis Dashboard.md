@@ -107,6 +107,7 @@ const WIDGET_MAP = {
   "quick-launch": "widgets/quick-launch.js",
   "mission-control": "widgets/mission-control.js",
   "recent-activity": "widgets/recent-activity.js",
+  "jarvis-voice-command": "widgets/jarvis-voice-command.js",
   "footer": "widgets/footer.js",
 };
 

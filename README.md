@@ -37,7 +37,7 @@
 
 ## Features
 
-**12 widgets**, all independently configurable and removable:
+**13 widgets**, all independently configurable and removable:
 
 ### Monitoring & Analytics
 - **Live Session Monitor** — Real-time Claude Code session tracking with subagent detection, polling every 3 seconds
@@ -46,6 +46,7 @@
 - **Agent Cards** — Visual AI agent fleet with unique robot avatars, skill pills, live status, and memory freshness
 
 ### Productivity
+- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and launch Claude Code in Terminal with your voice message
 - **Focus Timer** — Pomodoro timer with circular progress, customizable work/break presets, and automatic vault logging
 - **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags and optional voice-to-text dictation
 
@@ -103,15 +104,23 @@
 <table>
   <tr>
     <td align="center" width="50%">
+      <strong>JARVIS Voice Command</strong><br>
+      <em>Arc reactor button — speak to launch Claude Code</em><br><br>
+      <img src="assets/widgets/jarvis-voice-command.png" alt="JARVIS Voice Command" width="100%" />
+    </td>
+    <td align="center" width="50%">
       <strong>Focus Timer</strong><br>
       <em>Pomodoro timer with circular progress and vault logging</em><br><br>
       <img src="assets/widgets/focus-timer.png" alt="Focus Timer" width="100%" />
     </td>
+  </tr>
+  <tr>
     <td align="center" width="50%">
       <strong>Quick Capture</strong><br>
       <em>Instant note capture to your inbox folder</em><br><br>
       <img src="assets/widgets/quick-capture.png" alt="Quick Capture" width="100%" />
     </td>
+    <td align="center" width="50%"></td>
   </tr>
 </table>
 
@@ -439,6 +448,24 @@ Captures create timestamped notes with the specified tag in the target folder. T
 
 Analytics are computed from Claude Code session transcripts and cached for performance.
 
+#### JARVIS Voice Command
+
+```json
+"voiceCommand": {
+  "enabled": true,
+  "zoomMin": 0.92,
+  "zoomMax": 1.08
+}
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Show/hide the voice command widget |
+| `zoomMin` | `0.92` | Minimum scale for the recording zoom-wave animation |
+| `zoomMax` | `1.08` | Maximum scale for the recording zoom-wave animation |
+
+The widget reuses `communicationLink.terminalApp` for the terminal application and the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition.
+
 #### Communication Link
 
 ```json
@@ -511,6 +538,44 @@ Three visualization panels:
 1. **Activity Heatmap** — GitHub-style 30-day grid showing message volume per day
 2. **Peak Hours** — 24-bar chart showing activity distribution across hours
 3. **Model Usage** — Horizontal bar chart with percentage, session count, and cost per model
+
+### JARVIS Voice Command
+
+An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. experience to your dashboard. Speak a command, and it launches Claude Code in Terminal with your voice message.
+
+**How it works:**
+1. Tap (or long-press) the circular button to start recording
+2. Speak your command to JARVIS
+3. Tap again (or release) to stop recording
+4. Audio is transcribed offline via whisper-cpp
+5. Terminal opens, navigates to your vault, and launches `claude` with your message
+
+**Interaction modes:**
+
+| Action | Behavior |
+|---|---|
+| **Tap** | Starts recording. Tap again to stop, transcribe, and launch. |
+| **Long-press** (hold > 300ms) | Starts recording on hold. Release to stop, transcribe, and launch. |
+| **Escape** (while recording) | Cancels recording without launching. |
+
+**Visual states:**
+
+| State | Core | Ring Animation | Status Text |
+|---|---|---|---|
+| Idle | "J" letter with breathing animation | Slow rotation (12s), subtle glow | "Tap to speak to JARVIS" |
+| Recording | MM:SS timer only | Fast rotation (3s), synced breathing + zoom-wave | "Recording — Tap to Send" |
+| Transcribing | Hourglass icon | Moderate rotation (6s) | "Processing Voice..." |
+| Launching | Green checkmark | Brief burst | "Launching Claude..." |
+
+**Features:**
+- Stylized "J" letter icon with monospace font and cyan glow
+- Concentric animated rings with orbiting particle dots
+- Synchronized breathing and zoom-wave animations during recording (configurable via `zoomMin`/`zoomMax`)
+- Ripple effect on recording start
+- Escape key cancels recording
+- Transcribed text preview before terminal launch
+- Reuses Voice Capture prerequisites (whisper-cpp) — see [Voice Capture](#voice-capture) below
+- Graceful disabled state when whisper-cpp is not installed
 
 ### Focus Timer
 
@@ -730,7 +795,7 @@ jarvis_dashboard/
       Jarvis-Registry.md            Agent definitions
     core/
       theme.js                      Theme colors & responsive sizing
-      styles.js                     CSS animations (12 keyframes)
+      styles.js                     CSS animations (19 keyframes)
       helpers.js                    Utilities: el(), formatters
     services/
       session-parser.js             JSONL transcript parsing
@@ -743,6 +808,7 @@ jarvis_dashboard/
       system-diagnostics.js         Stats cards
       agent-cards.js                Robot avatars & agent grid
       activity-analytics.js         Heatmap, charts
+      jarvis-voice-command.js       Arc reactor voice command button
       communication-link.js         Terminal widget
       focus-timer.js                Pomodoro timer
       quick-capture.js              Note capture with voice dictation

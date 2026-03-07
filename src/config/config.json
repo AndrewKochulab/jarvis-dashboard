@@ -31,6 +31,7 @@
   },
   "layout": [
     { "type": "header" },
+    { "type": "jarvis-voice-command" },
     { "type": "live-sessions" },
     { "type": "row", "columns": 2, "widgets": ["focus-timer", "quick-capture"] },
     { "type": "agent-cards" },
@@ -100,6 +101,11 @@
     },
     "agentCards": {
       "registryPath": "src/config/Jarvis-Registry"
+    },
+    "voiceCommand": {
+      "enabled": true,
+      "zoomMin": 0.92,
+      "zoomMax": 1.08
     },
     "systemDiagnostics": {
       "periodDays": 30,

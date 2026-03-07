@@ -55,6 +55,30 @@ styleEl.textContent = `
     0%, 100% { box-shadow: 0 0 6px rgba(0,212,255,0.4); border-color: rgba(0,212,255,0.6); }
     50%      { box-shadow: 0 0 18px rgba(0,212,255,0.7), 0 0 36px rgba(0,212,255,0.3); border-color: rgba(0,212,255,0.9); }
   }
+  @keyframes jarvisArcRotate {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  @keyframes jarvisArcPulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(0,212,255,0.3), 0 0 30px rgba(0,212,255,0.1); }
+    50%      { box-shadow: 0 0 30px rgba(0,212,255,0.6), 0 0 60px rgba(0,212,255,0.3), 0 0 90px rgba(0,212,255,0.1); }
+  }
+  @keyframes jarvisRipple {
+    0%   { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(2.5); opacity: 0; }
+  }
+  @keyframes jarvisRecordPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(0,212,255,0.5), 0 0 40px rgba(0,212,255,0.2); }
+    50%      { box-shadow: 0 0 40px rgba(0,212,255,0.8), 0 0 80px rgba(0,212,255,0.4), 0 0 120px rgba(0,212,255,0.1); }
+  }
+  @keyframes jarvisRecordZoom {
+    0%, 100% { transform: scale(var(--jarvis-zoom-min, 0.92)); }
+    50%      { transform: scale(var(--jarvis-zoom-max, 1.08)); }
+  }
+  @keyframes jarvisOrbitDotLarge {
+    0%   { transform: rotate(0deg) translateX(34px) rotate(0deg); }
+    100% { transform: rotate(360deg) translateX(34px) rotate(-360deg); }
+  }
 `;
 
 return styleEl;
