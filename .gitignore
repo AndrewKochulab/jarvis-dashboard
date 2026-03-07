@@ -1,0 +1,5 @@
+.claude/
+CLAUDE.md
+.DS_Store
+*.json.bak
+node_modules/

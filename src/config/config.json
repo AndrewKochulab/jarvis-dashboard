@@ -1,0 +1,99 @@
+{
+  "dashboard": {
+    "title": "J.A.R.V.I.S.",
+    "subtitle": "Just A Rather Very Intelligent System",
+    "showScanLine": true,
+    "statusText": "System Online"
+  },
+  "theme": {
+    "bg": "#0a0a1a",
+    "panelBg": "#0d1117",
+    "panelBorder": "rgba(0, 212, 255, 0.12)",
+    "hoverBg": "#12182a",
+    "accent": "#00d4ff",
+    "accentDim": "rgba(0, 212, 255, 0.3)",
+    "accentFaint": "rgba(0, 212, 255, 0.08)",
+    "purple": "#7c6bff",
+    "green": "#44c98f",
+    "red": "#e74c3c",
+    "orange": "#ff6b35",
+    "gold": "#f6d365",
+    "text": "#e0e6ed",
+    "textMuted": "#6b7b8d",
+    "textDim": "#3a4553"
+  },
+  "projects": {
+    "mode": "manual",
+    "rootPath": "~/.claude/projects/",
+    "tracked": [
+      { "dir": "your-project-directory", "label": "My Project" }
+    ]
+  },
+  "layout": [
+    { "type": "header" },
+    { "type": "live-sessions" },
+    { "type": "row", "columns": 2, "widgets": ["focus-timer", "quick-capture"] },
+    { "type": "agent-cards" },
+    { "type": "communication-link" },
+    { "type": "row", "columns": 2, "widgets": ["quick-launch", "mission-control"] },
+    { "type": "system-diagnostics" },
+    { "type": "activity-analytics" },
+    { "type": "recent-activity" },
+    { "type": "footer" }
+  ],
+  "widgets": {
+    "focusTimer": {
+      "workPresets": [
+        { "label": "30m", "ms": 1800000 },
+        { "label": "60m", "ms": 3600000 }
+      ],
+      "breakPresets": [
+        { "label": "5m", "ms": 300000 },
+        { "label": "10m", "ms": 600000 },
+        { "label": "15m", "ms": 900000 }
+      ],
+      "logPath": "Work/Productivity"
+    },
+    "quickCapture": {
+      "targetFolder": "NoteLab",
+      "tag": "notelab/capture"
+    },
+    "quickLaunch": {
+      "bookmarks": [
+        { "name": "GitHub", "icon": "\u2b21", "color": "#e0e6ed", "type": "url", "target": "https://github.com" },
+        { "name": "YouTube", "icon": "\u25b6", "color": "#e74c3c", "type": "url", "target": "https://youtube.com" },
+        { "name": "Slack", "icon": "\ud83d\udcac", "color": "#7c6bff", "type": "app", "target": "Slack" },
+        { "name": "Cursor", "icon": "\u25b8", "color": "#44c98f", "type": "app", "target": "Cursor" },
+        { "name": "Terminal", "icon": "\u25aa", "color": "#00d4ff", "type": "app", "target": "Terminal" }
+      ]
+    },
+    "missionControl": {
+      "dashboards": [
+        { "name": "Health Dashboard", "path": "MOCs/Health Dashboard", "color": "#ff6b6b", "icon": "\u2665" },
+        { "name": "Analysis Dashboard", "path": "MOCs/Analysis Dashboard", "color": "#7c6bff", "icon": "\u25c9" }
+      ]
+    },
+    "recentActivity": {
+      "count": 10,
+      "excludePatterns": ["/(Daily|Weekly|Monthly)/"]
+    },
+    "communicationLink": {
+      "terminalApp": "Terminal",
+      "editorApp": "Cursor",
+      "terminalTitle": "claude \u2014 Dashboard",
+      "vaultPathDisplay": "~/my-vault"
+    },
+    "agentCards": {
+      "registryPath": "src/config/Jarvis-Registry"
+    },
+    "systemDiagnostics": {
+      "periodDays": 30,
+      "cacheDurationMs": 300000
+    }
+  },
+  "pricing": {
+    "opus": { "input": 15, "output": 75 },
+    "sonnet": { "input": 3, "output": 15 },
+    "haiku": { "input": 0.80, "output": 4 }
+  }
+}

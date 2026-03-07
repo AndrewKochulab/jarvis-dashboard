@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a1a;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#0d1117;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a0a1a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:transparent" />
+      <stop offset="30%" style="stop-color:#00d4ff" />
+      <stop offset="70%" style="stop-color:#00d4ff" />
+      <stop offset="100%" style="stop-color:transparent" />
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#00d4ff" />
+      <stop offset="50%" style="stop-color:#7c6bff" />
+      <stop offset="100%" style="stop-color:#00d4ff" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+    <filter id="titleGlow">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <pattern id="grid" patternUnits="userSpaceOnUse" width="40" height="40">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,212,255,0.05)" stroke-width="0.5" />
+    </pattern>
+    <clipPath id="roundedClip">
+      <rect width="1200" height="300" rx="16" ry="16" />
+    </clipPath>
+  </defs>
+
+  <!-- Rounded container -->
+  <g clip-path="url(#roundedClip)">
+    <!-- Background -->
+    <rect width="1200" height="300" fill="url(#bgGrad)" />
+    <rect width="1200" height="300" fill="url(#grid)" />
+
+    <!-- Top accent line -->
+    <rect x="0" y="0" width="1200" height="2" fill="url(#accentGrad)" opacity="0.6" />
+
+    <!-- Decorative circles -->
+    <circle cx="150" cy="150" r="80" fill="none" stroke="rgba(0,212,255,0.06)" stroke-width="1" />
+    <circle cx="150" cy="150" r="120" fill="none" stroke="rgba(0,212,255,0.03)" stroke-width="0.5" />
+    <circle cx="1050" cy="150" r="80" fill="none" stroke="rgba(124,107,255,0.06)" stroke-width="1" />
+    <circle cx="1050" cy="150" r="120" fill="none" stroke="rgba(124,107,255,0.03)" stroke-width="0.5" />
+
+    <!-- Left robot silhouette -->
+    <g transform="translate(120, 110)" opacity="0.15">
+      <line x1="30" y1="0" x2="30" y2="12" stroke="#00d4ff" stroke-width="2" />
+      <circle cx="30" cy="0" r="3" fill="#00d4ff" />
+      <rect x="6" y="12" width="48" height="38" rx="8" fill="none" stroke="#00d4ff" stroke-width="2" />
+      <circle cx="20" cy="28" r="5" fill="#00d4ff" />
+      <circle cx="40" cy="28" r="5" fill="#00d4ff" />
+      <line x1="20" y1="40" x2="40" y2="40" stroke="#00d4ff" stroke-width="1" opacity="0.5" />
+      <line x1="22" y1="43" x2="38" y2="43" stroke="#00d4ff" stroke-width="1" opacity="0.3" />
+    </g>
+
+    <!-- Right robot silhouette -->
+    <g transform="translate(1020, 110)" opacity="0.15">
+      <line x1="30" y1="0" x2="30" y2="12" stroke="#7c6bff" stroke-width="2" />
+      <circle cx="30" cy="0" r="3" fill="#7c6bff" />
+      <rect x="6" y="12" width="48" height="38" rx="14" fill="none" stroke="#7c6bff" stroke-width="2" />
+      <rect x="12" y="24" width="36" height="10" rx="3" fill="#7c6bff" opacity="0.6" />
+      <line x1="24" y1="24" x2="24" y2="34" stroke="rgba(0,0,0,0.3)" stroke-width="1" />
+      <line x1="36" y1="24" x2="36" y2="34" stroke="rgba(0,0,0,0.3)" stroke-width="1" />
+      <line x1="20" y1="40" x2="40" y2="40" stroke="#7c6bff" stroke-width="1" opacity="0.5" />
+    </g>
+
+    <!-- Status dot -->
+    <circle cx="530" cy="90" r="4" fill="#44c98f" filter="url(#glow)" />
+    <text x="545" y="94" font-family="SF Mono, Fira Code, Consolas, monospace" font-size="10" font-weight="600" letter-spacing="3" fill="#44c98f">SYSTEM ONLINE</text>
+
+    <!-- Main title -->
+    <text x="600" y="155" text-anchor="middle" font-family="SF Mono, Fira Code, Consolas, monospace" font-size="64" font-weight="800" letter-spacing="16" fill="url(#titleGrad)" filter="url(#titleGlow)">J.A.R.V.I.S.</text>
+
+    <!-- Subtitle -->
+    <text x="600" y="190" text-anchor="middle" font-family="SF Mono, Fira Code, Consolas, monospace" font-size="13" font-weight="400" letter-spacing="2" fill="#6b7b8d">Just A Rather Very Intelligent System</text>
+
+    <!-- Feature pills -->
+    <g transform="translate(600, 230)" text-anchor="middle">
+      <text font-family="Inter, -apple-system, sans-serif" font-size="11" fill="#6b7b8d" letter-spacing="1">
+        <tspan fill="#00d4ff">Live Sessions</tspan>
+        <tspan dx="8" fill="#3a4553">&#183;</tspan>
+        <tspan dx="8" fill="#7c6bff">Agent Fleet</tspan>
+        <tspan dx="8" fill="#3a4553">&#183;</tspan>
+        <tspan dx="8" fill="#44c98f">Analytics</tspan>
+        <tspan dx="8" fill="#3a4553">&#183;</tspan>
+        <tspan dx="8" fill="#f6d365">Focus Timer</tspan>
+        <tspan dx="8" fill="#3a4553">&#183;</tspan>
+        <tspan dx="8" fill="#ff6b35">Configurable</tspan>
+      </text>
+    </g>
+
+    <!-- Bottom accent line -->
+    <rect x="0" y="298" width="1200" height="2" fill="url(#accentGrad)" opacity="0.4" />
+  </g>
+
+  <!-- Rounded border -->
+  <rect width="1200" height="300" rx="16" ry="16" fill="none" stroke="rgba(0,212,255,0.12)" stroke-width="1.5" />
+</svg>
