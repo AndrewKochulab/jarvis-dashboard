@@ -56,7 +56,12 @@
     },
     "quickCapture": {
       "targetFolder": "NoteLab",
-      "tag": "notelab/capture"
+      "tag": "notelab/capture",
+      "voice": {
+        "enabled": true,
+        "lang": "en",
+        "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-base.en.bin"
+      }
     },
     "quickLaunch": {
       "groups": [

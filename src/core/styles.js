@@ -51,6 +51,10 @@ styleEl.textContent = `
     0%, 100% { box-shadow: 0 0 8px rgba(0,212,255,0.3); }
     50%      { box-shadow: 0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.2); }
   }
+  @keyframes jarvisMicPulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(0,212,255,0.4); border-color: rgba(0,212,255,0.6); }
+    50%      { box-shadow: 0 0 18px rgba(0,212,255,0.7), 0 0 36px rgba(0,212,255,0.3); border-color: rgba(0,212,255,0.9); }
+  }
 `;
 
 return styleEl;

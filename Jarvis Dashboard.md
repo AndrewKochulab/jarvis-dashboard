@@ -61,12 +61,15 @@ const ctx = {
   agentCardRefs: new Map(),
   onStatsReady: [],
   intervals: [],
+  cleanups: [],
 };
 
 // ── Load services ──
 ctx.sessionParser = loadModule("services/session-parser.js")(ctx);
 ctx.statsEngine = loadModule("services/stats-engine.js")(ctx);
 ctx.timerService = loadModule("services/timer-service.js")(ctx);
+ctx.voiceService = loadModule("services/voice-service.js")(ctx);
+ctx.cleanups.push(() => ctx.voiceService.cleanup());
 
 // ── Create main wrapper ──
 const wrapper = el("div", {
@@ -160,6 +163,7 @@ setTimeout(() => {
 const observer = new MutationObserver(() => {
   if (!document.contains(container)) {
     ctx.intervals.forEach(id => clearInterval(id));
+    ctx.cleanups.forEach(fn => { try { fn(); } catch(e) {} });
     observer.disconnect();
   }
 });

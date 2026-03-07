@@ -47,7 +47,7 @@
 
 ### Productivity
 - **Focus Timer** — Pomodoro timer with circular progress, customizable work/break presets, and automatic vault logging
-- **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags
+- **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags and optional voice-to-text dictation
 
 ### Navigation & Shortcuts
 - **Communication Link** — Terminal-style widget to launch Claude Code directly from Obsidian
@@ -407,11 +407,26 @@ Focus session logs are automatically created as Markdown files with frontmatter,
 ```json
 "quickCapture": {
   "targetFolder": "Inbox",
-  "tag": "inbox/capture"
+  "tag": "inbox/capture",
+  "voice": {
+    "enabled": true,
+    "lang": "en",
+    "whisperPath": "/opt/homebrew/bin/whisper-cli",
+    "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-base.en.bin"
+  }
 }
 ```
 
-Captures create timestamped notes with the specified tag in the target folder.
+Captures create timestamped notes with the specified tag in the target folder. The optional `voice` section enables voice-to-text dictation (see [Voice Capture](#voice-capture) below).
+
+| Key | Default | Description |
+|---|---|---|
+| `targetFolder` | `"NoteLab"` | Vault folder where captured notes are saved |
+| `tag` | `"notelab/capture"` | Frontmatter tag applied to each note |
+| `voice.enabled` | `true` | Enable/disable the mic button |
+| `voice.lang` | `"en"` | Whisper language code (`en`, `uk`, `de`, `fr`, etc.) |
+| `voice.whisperPath` | Auto-detected | Full path to `whisper-cli` binary |
+| `voice.whisperModel` | `"/opt/homebrew/share/whisper-cpp/ggml-base.en.bin"` | Path to GGML model file |
 
 #### System Diagnostics
 
@@ -508,6 +523,74 @@ Full Pomodoro implementation:
 - System notifications (requires browser notification permission)
 - Vault logging — creates/updates daily focus log files with tables and statistics
 
+## Voice Capture
+
+The Quick Capture widget supports voice-to-text dictation using [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for fully offline speech recognition. Audio is recorded via the Web Audio API (MediaRecorder) inside Obsidian, resampled to 16kHz mono WAV, and transcribed locally — no data leaves your machine.
+
+### Prerequisites
+
+1. **Install whisper.cpp** via Homebrew:
+
+   ```bash
+   brew install whisper-cpp
+   ```
+
+   This installs the `whisper-cli` binary and the default `ggml-base.en.bin` model.
+
+2. **Download a different model** (optional — for other languages or better accuracy):
+
+   ```bash
+   # Available models: tiny, base, small, medium, large-v3
+   # Add .en suffix for English-only (faster): ggml-base.en.bin, ggml-small.en.bin
+   curl -L -o /opt/homebrew/share/whisper-cpp/ggml-small.bin \
+     https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
+   ```
+
+   Then update `config.json`:
+
+   ```json
+   "voice": {
+     "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-small.bin",
+     "lang": "en"
+   }
+   ```
+
+3. **Grant Microphone permission** to Obsidian:
+
+   - macOS: System Settings > Privacy & Security > Microphone > enable **Obsidian**
+   - The first time you click the mic button, macOS will prompt for permission
+
+### Usage
+
+The mic button appears next to the Capture button when whisper-cpp is detected.
+
+| Action | Behavior |
+|---|---|
+| **Tap** mic button | Starts recording. Tap again to stop and transcribe. |
+| **Long-press** mic button (hold > 300ms) | Starts recording immediately on hold. Release to stop and transcribe. |
+| **Tap while recording** | Stops recording and begins transcription. |
+
+Transcribed text is appended to the text area. You can combine typing and voice — dictate, edit, dictate more, then click Capture.
+
+### Visual States
+
+| State | Mic Button |
+|---|---|
+| Idle | Cyan mic icon, subtle border |
+| Recording | Pulsing cyan glow animation, stop icon |
+| Transcribing | Breathing animation, hourglass icon |
+
+### Troubleshooting
+
+| Issue | Solution |
+|---|---|
+| Mic button not visible | Verify `whisper-cli` exists: `ls /opt/homebrew/bin/whisper-cli` and model exists at configured path |
+| "Recording failed" error | Check System Settings > Privacy & Security > Microphone > Obsidian is enabled |
+| Empty transcription | Recording may be too short. Speak for at least 1-2 seconds. |
+| Wrong language | Set `voice.lang` in config to the correct [ISO 639-1 code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) |
+| Slow first transcription | Normal — whisper-cpp loads the model on first run. Subsequent runs are faster. |
+| Custom whisper-cli path | Set `voice.whisperPath` in config to the full binary path |
+
 ## Architecture
 
 ### Module Loading
@@ -533,7 +616,7 @@ ctx = {
   isNarrow, isMedium, isWide,
 
   // Services
-  sessionParser, statsEngine, timerService,
+  sessionParser, statsEngine, timerService, voiceService,
 
   // Data
   agents, agentNames, skillToAgent,
@@ -542,6 +625,7 @@ ctx = {
   agentCardRefs,    // Map: agent name -> DOM refs
   onStatsReady,     // Array: callbacks for async stats
   intervals,        // Array: all setInterval IDs for cleanup
+  cleanups,         // Array: cleanup functions called on destroy
 }
 ```
 
@@ -652,6 +736,7 @@ jarvis_dashboard/
       session-parser.js             JSONL transcript parsing
       stats-engine.js               30-day analytics engine
       timer-service.js              Focus timer persistence
+      voice-service.js              Voice recording & whisper-cpp transcription
     widgets/
       header.js                     Title, clock, status
       live-sessions.js              Real-time session monitor
@@ -660,7 +745,7 @@ jarvis_dashboard/
       activity-analytics.js         Heatmap, charts
       communication-link.js         Terminal widget
       focus-timer.js                Pomodoro timer
-      quick-capture.js              Note capture
+      quick-capture.js              Note capture with voice dictation
       quick-launch.js               Bookmark grid (grouped or flat)
       mission-control.js            Navigation hub
       recent-activity.js            Recent files feed
