@@ -109,6 +109,20 @@
       "terminal": {
         "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault",
         "showCommand": false
+      },
+      "tts": {
+        "enabled": true,
+        "engine": "piper",
+        "say": { "voice": "Daniel", "rate": 160 },
+        "piper": {
+          "binaryPath": "/Users/andrewkochulab/Library/Python/3.9/bin/piper",
+          "modelPath": "~/.config/piper/en_US-joe-medium.onnx",
+          "lengthScale": null,
+          "noiseScale": 0.4,
+          "noiseWScale": 0.5,
+          "sentenceSilence": null,
+          "volume": null
+        }
       }
     },
     "systemDiagnostics": {

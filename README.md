@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  Live Sessions &bull; Agent Fleet &bull; 30-Day Analytics &bull; Focus Timer &bull; Quick Capture &bull; Configurable Layout
+  Live Sessions &bull; Agent Fleet &bull; 30-Day Analytics &bull; Focus Timer &bull; Quick Capture &bull; Text-to-Speech &bull; Configurable Layout
 </p>
 
 <p align="center">
@@ -46,7 +46,7 @@
 - **Agent Cards** — Visual AI agent fleet with unique robot avatars, skill pills, live status, and memory freshness
 
 ### Productivity
-- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel with multi-turn session continuity — no app-switching required
+- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel with text-to-speech voice responses (Piper neural TTS, macOS `say`, or browser speechSynthesis), multi-turn session continuity, and persistent mute toggle — no app-switching required
 - **Focus Timer** — Pomodoro timer with circular progress, customizable work/break presets, and automatic vault logging
 - **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags and optional voice-to-text dictation
 
@@ -470,7 +470,42 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 | `terminal.claudePath` | Auto-detected | Override path to `claude` binary. By default searches `~/.local/bin/`, `/usr/local/bin/`, `/opt/homebrew/bin/`. |
 | `terminal.showCommand` | `true` | Show/hide the CLI command prefix (`claude --print`, `claude --resume`) in the terminal echo line. When `false`, only `$ <your message>` is shown. |
 
-The widget reuses the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition.
+The widget reuses the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition and supports [Text-to-Speech](#text-to-speech) for voice responses.
+
+##### Text-to-Speech Configuration
+
+```json
+"tts": {
+  "enabled": true,
+  "engine": "piper",
+  "say": { "voice": "Daniel", "rate": 160 },
+  "piper": {
+    "binaryPath": "/path/to/piper",
+    "modelPath": "~/.config/piper/en_US-joe-medium.onnx",
+    "lengthScale": null,
+    "noiseScale": 0.4,
+    "noiseWScale": 0.5,
+    "sentenceSilence": null,
+    "volume": null
+  }
+}
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `tts.enabled` | `false` | Enable/disable text-to-speech voice responses |
+| `tts.engine` | `"say"` | Engine: `"piper"`, `"say"`, or `"speechSynthesis"` |
+| `tts.say.voice` | `"Samantha"` | macOS voice name (run `say -v ?` to list all) |
+| `tts.say.rate` | `185` | Words per minute for `say` engine |
+| `tts.piper.binaryPath` | — | Full path to piper binary (required for piper engine) |
+| `tts.piper.modelPath` | — | Path to ONNX voice model (`~` is expanded automatically) |
+| `tts.piper.lengthScale` | `null` | Speed: `<1.0` = faster, `>1.0` = slower. `null` uses model default |
+| `tts.piper.noiseScale` | `null` | Phoneme noise/variation (`0.0`–`1.0`). Lower = more robotic, higher = more expressive |
+| `tts.piper.noiseWScale` | `null` | Phoneme width noise (`0.0`–`1.0`). Controls duration variation |
+| `tts.piper.sentenceSilence` | `null` | Seconds of silence inserted between sentences |
+| `tts.piper.volume` | `null` | Output volume multiplier |
+
+Any piper parameter set to `null` is omitted from the command — the model's built-in default is used instead.
 
 #### Communication Link
 
@@ -636,6 +671,20 @@ Session state survives navigation and Obsidian restarts. When you switch to anot
 - Reuses Voice Capture prerequisites (whisper-cpp) — see [Voice Capture](#voice-capture) below
 - Graceful disabled state when whisper-cpp is not installed
 
+**Text-to-Speech (JARVIS Voice):**
+
+Claude's responses are spoken aloud sentence-by-sentence as they stream — creating a conversational experience where JARVIS reads back the response in real-time.
+
+- **Sentence-boundary streaming** — Extracts complete sentences (ending with `.`, `!`, or `?`) from Claude's token stream and enqueues them for playback as they arrive
+- **Markdown stripping** — Code blocks, bold, links, headers, and lists are cleaned before speaking for natural-sounding output
+- **Three engine options:**
+  - **Piper** (recommended) — Neural TTS with high-quality ONNX voice models. Natural, expressive speech. See [Text-to-Speech](#text-to-speech) for setup.
+  - **macOS `say`** — Built-in system voices, zero setup. Good for quick testing.
+  - **Browser speechSynthesis** — Web Speech API, works everywhere but lower quality.
+- **SVG mute toggle** — Clean speaker icon in the terminal header bar. Click to mute/unmute. Pulses with a breathing animation while JARVIS is speaking.
+- **Persistent mute state** — Your mute preference is saved to `jarvis-tts-prefs.json` and survives note reloads, Obsidian restarts, and is independent of terminal sessions.
+- **Sequential queue** — Sentences are spoken one at a time in order. If you close the terminal or mute, playback stops immediately.
+
 ### Focus Timer
 
 Full Pomodoro implementation:
@@ -715,6 +764,149 @@ Transcribed text is appended to the text area. You can combine typing and voice 
 | Slow first transcription | Normal — whisper-cpp loads the model on first run. Subsequent runs are faster. |
 | Custom whisper-cli path | Set `voice.whisperPath` in config to the full binary path |
 
+## Text-to-Speech
+
+The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper](https://github.com/rhasspy/piper) — a fast, local neural text-to-speech engine with high-quality voice models. No data leaves your machine.
+
+### Prerequisites
+
+1. **Install Piper** via pip:
+
+   ```bash
+   pip3 install piper-tts
+   ```
+
+   Verify the installation:
+
+   ```bash
+   piper --version
+   ```
+
+   > **Note:** Find the installed binary path with `which piper`. On macOS with Homebrew Python, it's typically `~/Library/Python/3.x/bin/piper`. Use this path for `tts.piper.binaryPath` in config.
+
+2. **Download a voice model** — each model requires two files (`.onnx` + `.onnx.json`):
+
+   ```bash
+   mkdir -p ~/.config/piper
+
+   # Joe (recommended) — clear, natural American male
+   curl -L -o ~/.config/piper/en_US-joe-medium.onnx \
+     "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/joe/medium/en_US-joe-medium.onnx"
+   curl -L -o ~/.config/piper/en_US-joe-medium.onnx.json \
+     "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/joe/medium/en_US-joe-medium.onnx.json"
+   ```
+
+3. **Test the voice** directly from the terminal:
+
+   ```bash
+   echo "Hello, I am JARVIS. How can I help you today?" | \
+     piper --model ~/.config/piper/en_US-joe-medium.onnx --output_file /tmp/test.wav && \
+     afplay /tmp/test.wav
+   ```
+
+4. **Configure** in `config.json`:
+
+   ```json
+   "tts": {
+     "enabled": true,
+     "engine": "piper",
+     "piper": {
+       "binaryPath": "/path/to/piper",
+       "modelPath": "~/.config/piper/en_US-joe-medium.onnx"
+     }
+   }
+   ```
+
+### Voice Models
+
+Browse all available voices at [Piper Voices on HuggingFace](https://huggingface.co/rhasspy/piper-voices/tree/main). Each language has multiple speakers in different quality levels (`low`, `medium`, `high`).
+
+#### Recommended Voices
+
+| Voice | Quality | Character | Download |
+|---|---|---|---|
+| **Joe** (en_US) | Medium | Clear, natural, balanced — best all-rounder | `en/en_US/joe/medium/` |
+| **John** (en_US) | Medium | Warm, slightly deeper tone | `en/en_US/john/medium/` |
+| **Bryce** (en_US) | Medium | Lighter, conversational | `en/en_US/bryce/medium/` |
+| **Alan** (en_GB) | Medium | British English | `en/en_GB/alan/medium/` |
+| **Danny** (en_US) | Low | Fast, smaller model | `en/en_US/danny/low/` |
+
+Download any voice with:
+
+```bash
+# Replace LANG/SPEAKER/QUALITY with your choice from the table above
+curl -L -o ~/.config/piper/VOICE_NAME.onnx \
+  "https://huggingface.co/rhasspy/piper-voices/resolve/main/LANG/SPEAKER/QUALITY/VOICE_NAME.onnx"
+curl -L -o ~/.config/piper/VOICE_NAME.onnx.json \
+  "https://huggingface.co/rhasspy/piper-voices/resolve/main/LANG/SPEAKER/QUALITY/VOICE_NAME.onnx.json"
+```
+
+Then update `modelPath` in your config to point to the new `.onnx` file.
+
+### Tuning Voice Parameters
+
+Fine-tune how the voice sounds using optional piper parameters in `config.json`. Set any parameter to `null` to use the model's built-in default:
+
+```json
+"piper": {
+  "binaryPath": "/path/to/piper",
+  "modelPath": "~/.config/piper/en_US-joe-medium.onnx",
+  "lengthScale": null,
+  "noiseScale": 0.4,
+  "noiseWScale": 0.5,
+  "sentenceSilence": null,
+  "volume": null
+}
+```
+
+| Parameter | Range | Effect |
+|---|---|---|
+| `lengthScale` | `0.5`–`2.0` | Speaking speed. `0.75` = 25% faster, `1.5` = 50% slower |
+| `noiseScale` | `0.0`–`1.0` | Phoneme variation. Lower = more robotic/consistent, higher = more expressive |
+| `noiseWScale` | `0.0`–`1.0` | Duration variation. Lower = metronomic timing, higher = natural rhythm |
+| `sentenceSilence` | `0.0`–`2.0` | Seconds of silence between sentences |
+| `volume` | `0.1`–`5.0` | Output volume multiplier |
+
+**Recommended starting point:** `noiseScale: 0.4`, `noiseWScale: 0.5` for a composed, AI-assistant-like tone.
+
+### Alternative Engines
+
+If you prefer zero-setup TTS, use one of the built-in alternatives:
+
+**macOS `say`** — Uses system voices. No installation required:
+
+```json
+"tts": {
+  "enabled": true,
+  "engine": "say",
+  "say": { "voice": "Daniel", "rate": 160 }
+}
+```
+
+Run `say -v ?` in Terminal to list all available voices.
+
+**Browser speechSynthesis** — Web Speech API, works on all platforms:
+
+```json
+"tts": {
+  "enabled": true,
+  "engine": "speechSynthesis"
+}
+```
+
+### Troubleshooting
+
+| Issue | Solution |
+|---|---|
+| No voice output | Check `tts.enabled` is `true` and the mute button is not muted (speaker icon should show sound waves) |
+| Falls back to `say` instead of piper | Verify `binaryPath` points to actual piper binary (`which piper`) and `modelPath` exists |
+| Piper binary not found | Run `pip3 install piper-tts` and check the install path with `which piper` |
+| Model file not found | Ensure both `.onnx` and `.onnx.json` files exist at the configured path |
+| Voice sounds robotic | Increase `noiseScale` and `noiseWScale` (e.g., `0.6` and `0.7`) |
+| Voice too slow/fast | Adjust `lengthScale` — lower is faster, higher is slower |
+| First sentence delayed | Normal — piper loads the ONNX model on first invocation. Subsequent sentences are faster. |
+| Mute state not persisting | Ensure the project session directory exists: `ls ~/.claude/projects/` |
+
 ## Architecture
 
 ### Module Loading
@@ -740,7 +932,7 @@ ctx = {
   isNarrow, isMedium, isWide,
 
   // Services
-  sessionParser, statsEngine, timerService, voiceService,
+  sessionParser, statsEngine, timerService, voiceService, ttsService,
 
   // Data
   agents, agentNames, skillToAgent,
@@ -859,6 +1051,7 @@ jarvis_dashboard/
       session-parser.js             JSONL transcript parsing
       stats-engine.js               30-day analytics engine
       timer-service.js              Focus timer persistence
+      tts-service.js                Text-to-speech engine (Piper, say, speechSynthesis)
       voice-service.js              Voice recording & whisper-cpp transcription
     widgets/
       header.js                     Title, clock, status

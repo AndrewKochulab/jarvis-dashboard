@@ -70,6 +70,8 @@ ctx.statsEngine = loadModule("services/stats-engine.js")(ctx);
 ctx.timerService = loadModule("services/timer-service.js")(ctx);
 ctx.voiceService = loadModule("services/voice-service.js")(ctx);
 ctx.cleanups.push(() => ctx.voiceService.cleanup());
+ctx.ttsService = loadModule("services/tts-service.js")(ctx);
+ctx.cleanups.push(() => ctx.ttsService.cleanup());
 
 // ── Create main wrapper ──
 const wrapper = el("div", {

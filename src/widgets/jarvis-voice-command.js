@@ -2,7 +2,7 @@
 // Arc reactor-style circular button — record voice, transcribe, stream Claude response in-panel
 // Returns: HTMLElement
 
-const { el, T, config, isNarrow, voiceService, nodeFs, nodePath } = ctx;
+const { el, T, config, isNarrow, voiceService, ttsService, nodeFs, nodePath } = ctx;
 const cmdCfg = config.widgets?.voiceCommand || {};
 if (cmdCfg.enabled === false) return el("div", {});
 
@@ -51,6 +51,23 @@ function stripAnsi(str) {
     /[\x1B\x9B][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><~]/g,
     ""
   );
+}
+
+function stripMarkdown(text) {
+  return text
+    .replace(/```[\s\S]*?```/g, " code block ")
+    .replace(/`[^`]+`/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/_([^_]+)_/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function killClaudeProcess() {
@@ -102,6 +119,29 @@ function buildClaudeArgs(text) {
   args.push("-p", "--output-format", "stream-json", "--include-partial-messages", text);
   return args;
 }
+
+// ── TTS prefs persistence (independent of terminal sessions) ──
+function readTtsPrefs() {
+  try {
+    const p = nodePath.join(getProjectSessionDir(), "jarvis-tts-prefs.json");
+    return JSON.parse(nodeFs.readFileSync(p, "utf8"));
+  } catch { return { muted: false }; }
+}
+
+function writeTtsPrefs(prefs) {
+  try {
+    const dir = getProjectSessionDir();
+    if (!nodeFs.existsSync(dir)) nodeFs.mkdirSync(dir, { recursive: true });
+    nodeFs.writeFileSync(
+      nodePath.join(dir, "jarvis-tts-prefs.json"),
+      JSON.stringify(prefs, null, 2)
+    );
+  } catch {}
+}
+
+// ── SVG icons for TTS mute button ──
+const SVG_SPEAKER_ON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>';
+const SVG_SPEAKER_OFF = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>';
 
 // ── Voice state persistence ──
 function readVoiceState() {
@@ -467,6 +507,66 @@ function updateBadgeState(state) {
   }
 }
 
+// Mute button — SVG speaker icon, TTS toggle, hidden when TTS disabled
+const ttsEnabled = ttsService && ttsService.isEnabled;
+const muteBtn = el("span", {
+  cursor: "pointer",
+  padding: "4px 8px",
+  borderRadius: "6px",
+  transition: "all 0.2s ease",
+  display: ttsEnabled ? "inline-flex" : "none",
+  alignItems: "center",
+  justifyContent: "center",
+  color: T.accent,
+  marginRight: "4px",
+});
+muteBtn.innerHTML = SVG_SPEAKER_ON;
+terminalHeader.appendChild(muteBtn);
+
+// Restore persisted mute state
+if (ttsEnabled) {
+  const ttsPrefs = readTtsPrefs();
+  if (ttsPrefs.muted) {
+    ttsService.mute();
+    muteBtn.innerHTML = SVG_SPEAKER_OFF;
+    muteBtn.style.color = T.textMuted;
+  }
+}
+
+muteBtn.addEventListener("click", () => {
+  if (!ttsService) return;
+  if (ttsService.isMuted) {
+    ttsService.unmute();
+    muteBtn.innerHTML = SVG_SPEAKER_ON;
+    muteBtn.style.color = T.accent;
+  } else {
+    ttsService.mute();
+    muteBtn.innerHTML = SVG_SPEAKER_OFF;
+    muteBtn.style.color = T.textMuted;
+  }
+  writeTtsPrefs({ muted: ttsService.isMuted });
+});
+
+muteBtn.addEventListener("mouseenter", () => {
+  muteBtn.style.background = "rgba(0,212,255,0.1)";
+});
+muteBtn.addEventListener("mouseleave", () => {
+  muteBtn.style.background = "transparent";
+});
+
+// Speaking pulse indicator — check every 500ms
+if (ttsEnabled) {
+  const speakPulseCheck = setInterval(() => {
+    if (!ttsService) return;
+    if (ttsService.isSpeaking && !ttsService.isMuted) {
+      muteBtn.style.animation = "jarvisPulse 2s ease-in-out infinite";
+    } else if (muteBtn.style.animation) {
+      muteBtn.style.animation = "";
+    }
+  }, 500);
+  ctx.intervals.push(speakPulseCheck);
+}
+
 // Copy button [Copy]
 const copyBtnLabel = el("span", {}, "Copy");
 const copyBtn = el("span", {
@@ -562,6 +662,7 @@ function updateSessionIndicator() {
 }
 
 function clearSession() {
+  if (ttsService) ttsService.stop();
   killClaudeProcess();
   currentSessionId = null;
   conversationHistory = [];
@@ -602,6 +703,7 @@ newSessionBtn.addEventListener("mouseleave", () => {
 newSessionBtn.addEventListener("click", () => clearSession());
 
 closeBtn.addEventListener("click", () => {
+  if (ttsService) ttsService.stop();
   killClaudeProcess();
   closeTerminalPanel();
   if (uiState !== "idle") setUIState("idle");
@@ -836,6 +938,7 @@ function handleKeyDown(e) {
       cancelRecording();
     } else if (uiState === "streaming") {
       e.preventDefault();
+      if (ttsService) ttsService.stop();
       killClaudeProcess();
       closeTerminalPanel();
       setUIState("idle");
@@ -988,6 +1091,7 @@ function launchClaudeInPanel(text) {
   // Parse newline-delimited JSON stream for real-time token streaming
   let lineBuf = "";
   let currentTurnBuffer = "";
+  let speakBuffer = "";
 
   claudeProcess.stdout.on("data", (chunk) => {
     lineBuf += chunk.toString("utf8");
@@ -1006,6 +1110,18 @@ function launchClaudeInPanel(text) {
           currentTurnBuffer += txt;
           outputContent.appendChild(document.createTextNode(txt));
           terminalOutput.scrollTop = terminalOutput.scrollHeight;
+
+          // TTS: extract complete sentences and enqueue
+          if (ttsService && ttsService.isEnabled && !ttsService.isMuted) {
+            speakBuffer += txt;
+            const sentenceEnd = /^([\s\S]*?[.!?])(\s+|\n\n)/;
+            let match;
+            while ((match = sentenceEnd.exec(speakBuffer)) !== null) {
+              const sentence = match[1].trim();
+              if (sentence) ttsService.speak(stripMarkdown(sentence));
+              speakBuffer = speakBuffer.slice(match[0].length);
+            }
+          }
         }
         // Fallback: extract from result event if no deltas were received
         if (evt.type === "result" && evt.result && !currentTurnBuffer) {
@@ -1044,6 +1160,12 @@ function launchClaudeInPanel(text) {
     }, code === 0 ? "[Process complete]" : `[Process exited with code ${code}]`);
     terminalOutput.appendChild(completeLine);
     terminalOutput.scrollTop = terminalOutput.scrollHeight;
+
+    // TTS: speak any remaining text that didn't end with punctuation
+    if (ttsService && ttsService.isEnabled && !ttsService.isMuted && speakBuffer.trim()) {
+      ttsService.speak(stripMarkdown(speakBuffer.trim()));
+    }
+    speakBuffer = "";
 
     // Session detection (first turn only, successful exit)
     if (code === 0 && preSpawnJsonlSet && !currentSessionId) {
