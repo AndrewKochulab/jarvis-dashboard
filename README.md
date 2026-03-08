@@ -46,7 +46,7 @@
 - **Agent Cards** — Visual AI agent fleet with unique robot avatars, skill pills, live status, and memory freshness
 
 ### Productivity
-- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel — no app-switching required
+- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel with multi-turn session continuity — no app-switching required
 - **Focus Timer** — Pomodoro timer with circular progress, customizable work/break presets, and automatic vault logging
 - **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags and optional voice-to-text dictation
 
@@ -468,6 +468,7 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 | `zoomMax` | `1.08` | Maximum scale for the recording zoom-wave animation |
 | `terminal.projectPath` | Vault path | Working directory for the `claude` child process. `~` is expanded automatically. |
 | `terminal.claudePath` | Auto-detected | Override path to `claude` binary. By default searches `~/.local/bin/`, `/usr/local/bin/`, `/opt/homebrew/bin/`. |
+| `terminal.showCommand` | `true` | Show/hide the CLI command prefix (`claude --print`, `claude --resume`) in the terminal echo line. When `false`, only `$ <your message>` is shown. |
 
 The widget reuses the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition.
 
@@ -565,7 +566,7 @@ An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. ex
 - Styled to match the Communication Link widget (monospace font, dark panel, cyan accents)
 - **Header bar** with close button, status badge (Running / Done / Error), and copy-to-clipboard button
 - **Scrollable output** with auto-scroll during streaming
-- **Command echo** — shows the exact `claude --print` command at the top
+- **Command echo** — shows `$ <your message>` (or the full CLI command when `showCommand` is enabled)
 - Slide-in/slide-out animations for smooth open/close transitions
 
 **Interaction modes:**
@@ -586,7 +587,8 @@ An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. ex
 | Transcribing | Hourglass icon | Moderate rotation (6s) | "Processing Voice..." |
 | Launching | Rocket icon | Brief burst | "Launching Claude..." |
 | Streaming | Pulsing dot | Active rotation | "Claude is responding..." |
-| Done | Green checkmark | Settled | "Response complete" |
+| Done (no session) | "J" letter restored | Settled | "Tap to speak to JARVIS" |
+| Done (has session) | "J" letter restored | Settled | "Tap to continue the conversation" |
 | Error | Red X | Settled | Error message |
 
 **Technical details:**
@@ -598,13 +600,37 @@ An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. ex
 - Closes stdin immediately after spawn (required for `claude -p` to begin processing)
 - Process cleanup on widget destroy, escape key, or panel close
 
+**Session continuity:**
+
+After the first response completes, a session indicator bar appears between the arc reactor and the terminal panel:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  ● SESSION  #a3f2c1d                [Resume]  [New Session]  │
+└─────────────────────────────────────────────────────────┘
+```
+
+- The session ID is automatically detected from Claude Code's JSONL transcript files
+- Tap JARVIS again to continue the conversation — `--resume <session-id>` is passed automatically
+- Multi-turn responses are separated by dashed dividers in the terminal panel
+- **Resume** — reopens the terminal panel if closed and prompts you to speak
+- **New Session** — clears the conversation and starts fresh
+- Closing the terminal panel with `[✕]` preserves the session — you can resume later
+
+**State persistence:**
+
+Session state survives navigation and Obsidian restarts. When you switch to another note and return, the terminal panel restores with your full conversation history, session indicator, and copy buffer intact. State is stored in `~/.claude/projects/<project>/jarvis-voice-state.json`.
+
 **Features:**
 - Stylized "J" letter icon with monospace font and cyan glow
 - Concentric animated rings with orbiting particle dots
 - Synchronized breathing and zoom-wave animations during recording (configurable via `zoomMin`/`zoomMax`)
 - Ripple effect on recording start
 - Real-time token-by-token streaming — responses appear as they're generated
-- Copy full response to clipboard with one click
+- Multi-turn session continuity with automatic `--resume` detection
+- Persistent state across navigation and Obsidian restarts
+- Copy full conversation to clipboard with one click
+- Configurable command echo visibility (`showCommand`)
 - Escape key cancels recording or kills an active stream
 - Transcribed text preview before streaming begins
 - Reuses Voice Capture prerequisites (whisper-cpp) — see [Voice Capture](#voice-capture) below

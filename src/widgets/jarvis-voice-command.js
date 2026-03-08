@@ -13,6 +13,7 @@ const zoomMax = cmdCfg.zoomMax ?? 1.08;
 // ── Terminal config ──
 const termCfg = cmdCfg.terminal || {};
 const termProjectPath = termCfg.projectPath || null;
+const showCommand = termCfg.showCommand !== false;
 
 // ── Resolve claude binary path (same pattern as whisper-cli in voice-service.js) ──
 const claudeSearchPaths = [
@@ -30,6 +31,11 @@ if (!claudePath) {
 // ── Process state ──
 let claudeProcess = null;
 let fullBuffer = "";
+
+// ── Session continuity state ──
+let currentSessionId = null;
+let conversationHistory = [];
+let preSpawnJsonlSet = null;
 
 // ── Utilities ──
 function expandPath(p) {
@@ -52,6 +58,77 @@ function killClaudeProcess() {
     try { claudeProcess.kill("SIGTERM"); } catch (e) {}
     claudeProcess = null;
   }
+}
+
+// ── Session utilities ──
+function getProjectSessionDir() {
+  const cwd = expandPath(termProjectPath) || app.vault.adapter.basePath;
+  return nodePath.join(require("os").homedir(), ".claude", "projects",
+    cwd.replace(/[^a-zA-Z0-9-]/g, "-"));
+}
+
+function snapshotJsonlFiles() {
+  try {
+    const dir = getProjectSessionDir();
+    if (!nodeFs.existsSync(dir)) return new Set();
+    return new Set(nodeFs.readdirSync(dir).filter(f => f.endsWith(".jsonl")));
+  } catch { return new Set(); }
+}
+
+function detectNewSession(beforeSet) {
+  try {
+    const dir = getProjectSessionDir();
+    if (!nodeFs.existsSync(dir)) return null;
+    const afterFiles = nodeFs.readdirSync(dir).filter(f => f.endsWith(".jsonl"));
+    const newFiles = afterFiles.filter(f => !beforeSet.has(f));
+    if (newFiles.length === 1) return newFiles[0].replace(".jsonl", "");
+    if (newFiles.length > 1) {
+      let best = null, bestMtime = 0;
+      for (const f of newFiles) {
+        try {
+          const mt = nodeFs.statSync(nodePath.join(dir, f)).mtimeMs;
+          if (mt > bestMtime) { bestMtime = mt; best = f; }
+        } catch {}
+      }
+      return best ? best.replace(".jsonl", "") : null;
+    }
+    return null;
+  } catch { return null; }
+}
+
+function buildClaudeArgs(text) {
+  const args = [];
+  if (currentSessionId) args.push("--resume", currentSessionId);
+  args.push("-p", "--output-format", "stream-json", "--include-partial-messages", text);
+  return args;
+}
+
+// ── Voice state persistence ──
+function readVoiceState() {
+  try {
+    const p = nodePath.join(getProjectSessionDir(), "jarvis-voice-state.json");
+    return JSON.parse(nodeFs.readFileSync(p, "utf8"));
+  } catch { return null; }
+}
+
+function writeVoiceState() {
+  try {
+    const dir = getProjectSessionDir();
+    if (!nodeFs.existsSync(dir)) nodeFs.mkdirSync(dir, { recursive: true });
+    nodeFs.writeFileSync(nodePath.join(dir, "jarvis-voice-state.json"), JSON.stringify({
+      currentSessionId,
+      conversationHistory,
+      fullBuffer,
+    }, null, 2));
+  } catch {}
+}
+
+// ── Restore persisted session state ──
+const _saved = readVoiceState();
+if (_saved) {
+  currentSessionId = _saved.currentSessionId || null;
+  conversationHistory = _saved.conversationHistory || [];
+  fullBuffer = _saved.fullBuffer || "";
 }
 
 // ── State ──
@@ -205,6 +282,76 @@ const previewEl = el("div", {
   fontFamily: "'Inter', -apple-system, sans-serif",
 });
 section.appendChild(previewEl);
+
+// ═══════════════════════════════════════════
+// ── Session indicator bar (hidden by default) ──
+// ═══════════════════════════════════════════
+
+const sessionDot = el("span", {
+  display: "inline-block",
+  width: "6px", height: "6px",
+  borderRadius: "50%",
+  background: T.green,
+  flexShrink: "0",
+});
+
+const sessionLabel = el("span", {
+  fontSize: "10px", fontWeight: "700",
+  letterSpacing: "1.5px", textTransform: "uppercase",
+  color: T.textMuted,
+  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+}, "SESSION");
+
+const sessionIdLabel = el("span", {
+  fontSize: "10px", fontWeight: "600",
+  letterSpacing: "1px",
+  color: T.accent,
+  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+});
+
+const resumeBtn = el("span", {
+  fontSize: "10px", fontWeight: "600",
+  letterSpacing: "1px",
+  color: T.green,
+  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+  padding: "3px 10px",
+  borderRadius: "6px",
+  border: `1px solid ${T.green}44`,
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+}, "Resume");
+
+const newSessionBtn = el("span", {
+  fontSize: "10px", fontWeight: "600",
+  letterSpacing: "1px",
+  color: T.textMuted,
+  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+  padding: "3px 10px",
+  borderRadius: "6px",
+  border: `1px solid ${T.panelBorder}`,
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+}, "New Session");
+
+const sessionBar = el("div", {
+  display: "none",
+  alignItems: "center",
+  gap: "6px",
+  padding: "8px 14px",
+  marginTop: "12px",
+  background: T.panelBg,
+  border: `1px solid ${T.panelBorder}`,
+  borderRadius: "8px",
+  maxWidth: isNarrow ? "100%" : "600px",
+  width: "100%",
+});
+sessionBar.appendChild(sessionDot);
+sessionBar.appendChild(sessionLabel);
+sessionBar.appendChild(sessionIdLabel);
+sessionBar.appendChild(el("div", { flex: "1" }));
+sessionBar.appendChild(resumeBtn);
+sessionBar.appendChild(newSessionBtn);
+section.appendChild(sessionBar);
 
 // ═══════════════════════════════════════════
 // ── Terminal Panel (hidden by default) ──
@@ -385,11 +532,74 @@ function closeTerminalPanel() {
   setTimeout(() => {
     terminalPanel.style.display = "none";
     terminalPanel.style.animation = "";
-    terminalOutput.innerHTML = "";
-    fullBuffer = "";
+    if (!currentSessionId) {
+      terminalOutput.innerHTML = "";
+      fullBuffer = "";
+    }
     updateBadgeState("idle");
   }, 220);
 }
+
+// ── Session management functions ──
+function appendTurnSeparator() {
+  terminalOutput.appendChild(el("div", {
+    height: "1px",
+    borderTop: `1px dashed ${T.accent}33`,
+    margin: "12px 0",
+  }));
+}
+
+function updateSessionIndicator() {
+  if (currentSessionId) {
+    sessionBar.style.display = "flex";
+    sessionIdLabel.textContent = ` #${currentSessionId.slice(0, 7)}`;
+    sessionDot.style.animation = (uiState === "streaming" || uiState === "launching")
+      ? "jarvisPulse 2s ease-in-out infinite" : "none";
+    sessionDot.style.background = T.green;
+  } else {
+    sessionBar.style.display = "none";
+  }
+}
+
+function clearSession() {
+  killClaudeProcess();
+  currentSessionId = null;
+  conversationHistory = [];
+  preSpawnJsonlSet = null;
+  fullBuffer = "";
+  terminalOutput.innerHTML = "";
+  updateBadgeState("idle");
+  updateSessionIndicator();
+  writeVoiceState();
+  if (terminalPanel.style.display !== "none") closeTerminalPanel();
+  setUIState("idle");
+}
+
+// ── Session bar event listeners ──
+resumeBtn.addEventListener("mouseenter", () => {
+  resumeBtn.style.background = `${T.green}15`;
+  resumeBtn.style.borderColor = `${T.green}77`;
+});
+resumeBtn.addEventListener("mouseleave", () => {
+  resumeBtn.style.background = "transparent";
+  resumeBtn.style.borderColor = `${T.green}44`;
+});
+resumeBtn.addEventListener("click", () => {
+  if (uiState === "streaming" || uiState === "recording" || uiState === "transcribing") return;
+  if (terminalPanel.style.display === "none") openTerminalPanel();
+  statusText.textContent = "Speak your next message...";
+  statusText.style.color = T.accent;
+});
+
+newSessionBtn.addEventListener("mouseenter", () => {
+  newSessionBtn.style.background = `${T.textMuted}15`;
+  newSessionBtn.style.borderColor = `${T.textMuted}44`;
+});
+newSessionBtn.addEventListener("mouseleave", () => {
+  newSessionBtn.style.background = "transparent";
+  newSessionBtn.style.borderColor = T.panelBorder;
+});
+newSessionBtn.addEventListener("click", () => clearSession());
 
 closeBtn.addEventListener("click", () => {
   killClaudeProcess();
@@ -406,6 +616,45 @@ section.appendChild(el("div", {
 }));
 
 if (!available) return section;
+
+// ═══════════════════════════════════════════
+// ── Restore persisted session UI ──
+// ═══════════════════════════════════════════
+
+if (currentSessionId && conversationHistory.length > 0) {
+  for (let i = 0; i < conversationHistory.length; i++) {
+    const turn = conversationHistory[i];
+    if (turn.role === "user") {
+      if (i > 0) appendTurnSeparator();
+      const echoLine = el("div", { marginBottom: "4px" });
+      echoLine.appendChild(el("span", { color: T.green }, "$ "));
+      const trunc = turn.text.length > 80 ? turn.text.slice(0, 80) + "\u2026" : turn.text;
+      if (showCommand) {
+        const isResTurn = i > 0;
+        const cmdText = isResTurn
+          ? `claude --resume ${currentSessionId.slice(0, 7)}\u2026 ${trunc}`
+          : `claude --print ${trunc}`;
+        echoLine.appendChild(el("span", { color: T.textMuted }, cmdText));
+      } else {
+        echoLine.appendChild(el("span", { color: T.textMuted }, trunc));
+      }
+      terminalOutput.appendChild(echoLine);
+      terminalOutput.appendChild(el("div", {
+        height: "1px", background: `${T.accent}33`, margin: "8px 0",
+      }));
+    } else if (turn.role === "assistant") {
+      terminalOutput.appendChild(el("div", { color: T.text, whiteSpace: "pre-wrap" }, turn.text));
+      terminalOutput.appendChild(el("div", {
+        color: T.accent, opacity: "0.6", marginTop: "8px",
+        fontSize: isNarrow ? "10px" : "11px", letterSpacing: "1px",
+      }, "[Process complete]"));
+    }
+  }
+  openTerminalPanel();
+  updateBadgeState("success");
+  updateSessionIndicator();
+  setUIState("done");
+}
 
 // ═══════════════════════════════════════════
 // ── State management ──
@@ -425,8 +674,8 @@ function setUIState(newState) {
     outerRing.style.borderColor = T.accent + "33";
     glowRing.style.animation = "jarvisArcPulse 4s ease-in-out infinite";
     btnContainer.style.animation = "none";
-    statusText.textContent = "Tap to speak to JARVIS";
-    statusText.style.color = T.textMuted;
+    statusText.textContent = currentSessionId ? "Speak your next message..." : "Tap to speak to JARVIS";
+    statusText.style.color = currentSessionId ? T.accent : T.textMuted;
     previewEl.style.display = "none";
     previewEl.style.opacity = "0";
 
@@ -514,8 +763,8 @@ function setUIState(newState) {
     outerRing.style.borderColor = T.accent + "33";
     glowRing.style.animation = "jarvisArcPulse 4s ease-in-out infinite";
     btnContainer.style.animation = "none";
-    statusText.textContent = "Tap to speak to JARVIS";
-    statusText.style.color = T.textMuted;
+    statusText.textContent = currentSessionId ? "Tap to continue the conversation" : "Tap to speak to JARVIS";
+    statusText.style.color = currentSessionId ? T.accent : T.textMuted;
     updateBadgeState("success");
 
   } else if (newState === "error") {
@@ -533,6 +782,8 @@ function setUIState(newState) {
     statusText.style.color = T.red;
     updateBadgeState("error");
   }
+
+  updateSessionIndicator();
 }
 
 function triggerRipple() {
@@ -588,6 +839,7 @@ function handleKeyDown(e) {
       killClaudeProcess();
       closeTerminalPanel();
       setUIState("idle");
+      updateSessionIndicator();
     }
   }
 }
@@ -595,7 +847,10 @@ document.addEventListener("keydown", handleKeyDown);
 ctx.cleanups.push(() => document.removeEventListener("keydown", handleKeyDown));
 
 // ── Process cleanup ──
-ctx.cleanups.push(killClaudeProcess);
+ctx.cleanups.push(() => {
+  writeVoiceState();
+  killClaudeProcess();
+});
 
 // ── Core actions ──
 function beginRecording() {
@@ -630,6 +885,8 @@ function finishRecording() {
       setUIState("launching");
 
       setTimeout(() => {
+        conversationHistory.push({ role: "user", text: trimmed, timestamp: Date.now() });
+        writeVoiceState();
         launchClaudeInPanel(trimmed);
         setTimeout(() => {
           previewEl.style.opacity = "0";
@@ -660,20 +917,31 @@ function launchClaudeInPanel(text) {
   }
 
   killClaudeProcess();
-  fullBuffer = "";
 
+  const isResume = !!currentSessionId;
   const cwd = expandPath(termProjectPath) || app.vault.adapter.basePath;
 
-  // Clear previous output
-  terminalOutput.innerHTML = "";
+  if (!isResume) {
+    fullBuffer = "";
+    terminalOutput.innerHTML = "";
+    preSpawnJsonlSet = snapshotJsonlFiles();
+  } else {
+    appendTurnSeparator();
+    fullBuffer += "\n\n---\n\n";
+  }
 
-  // Echo line: $ claude --print '...'
+  // Echo line (always visible — $ + user prompt, optionally with CLI command)
   const echoLine = el("div", { marginBottom: "4px" });
-  const echoPrompt = el("span", { color: T.green }, "$ ");
+  echoLine.appendChild(el("span", { color: T.green }, "$ "));
   const echoTruncated = text.length > 80 ? text.slice(0, 80) + "\u2026" : text;
-  const echoCmd = el("span", { color: T.textMuted }, `claude --print '${echoTruncated}'`);
-  echoLine.appendChild(echoPrompt);
-  echoLine.appendChild(echoCmd);
+  if (showCommand) {
+    const cmdText = isResume
+      ? `claude --resume ${currentSessionId.slice(0, 7)}\u2026 ${echoTruncated}`
+      : `claude --print ${echoTruncated}`;
+    echoLine.appendChild(el("span", { color: T.textMuted }, cmdText));
+  } else {
+    echoLine.appendChild(el("span", { color: T.textMuted }, echoTruncated));
+  }
   terminalOutput.appendChild(echoLine);
 
   // Separator
@@ -709,7 +977,7 @@ function launchClaudeInPanel(text) {
   delete childEnv.CLAUDE_CODE_ENTRYPOINT;
   delete childEnv.CLAUDE_CODE_MAX_OUTPUT_TOKENS;
 
-  claudeProcess = spawn(claudePath, ["-p", "--output-format", "stream-json", "--include-partial-messages", text], {
+  claudeProcess = spawn(claudePath, buildClaudeArgs(text), {
     cwd: cwd,
     env: childEnv,
   });
@@ -719,6 +987,7 @@ function launchClaudeInPanel(text) {
 
   // Parse newline-delimited JSON stream for real-time token streaming
   let lineBuf = "";
+  let currentTurnBuffer = "";
 
   claudeProcess.stdout.on("data", (chunk) => {
     lineBuf += chunk.toString("utf8");
@@ -734,12 +1003,14 @@ function launchClaudeInPanel(text) {
             evt.event?.delta?.type === "text_delta") {
           const txt = evt.event.delta.text;
           fullBuffer += txt;
+          currentTurnBuffer += txt;
           outputContent.appendChild(document.createTextNode(txt));
           terminalOutput.scrollTop = terminalOutput.scrollHeight;
         }
         // Fallback: extract from result event if no deltas were received
-        if (evt.type === "result" && evt.result && !fullBuffer) {
-          fullBuffer = evt.result;
+        if (evt.type === "result" && evt.result && !currentTurnBuffer) {
+          fullBuffer += evt.result;
+          currentTurnBuffer = evt.result;
           outputContent.appendChild(document.createTextNode(evt.result));
           terminalOutput.scrollTop = terminalOutput.scrollHeight;
         }
@@ -773,6 +1044,21 @@ function launchClaudeInPanel(text) {
     }, code === 0 ? "[Process complete]" : `[Process exited with code ${code}]`);
     terminalOutput.appendChild(completeLine);
     terminalOutput.scrollTop = terminalOutput.scrollHeight;
+
+    // Session detection (first turn only, successful exit)
+    if (code === 0 && preSpawnJsonlSet && !currentSessionId) {
+      const detectedId = detectNewSession(preSpawnJsonlSet);
+      if (detectedId) currentSessionId = detectedId;
+      preSpawnJsonlSet = null;
+    }
+
+    // Track conversation history
+    if (code === 0 && currentTurnBuffer) {
+      conversationHistory.push({ role: "assistant", text: currentTurnBuffer, timestamp: Date.now() });
+    }
+
+    // Persist session state to disk
+    writeVoiceState();
 
     setUIState(code === 0 ? "done" : "error");
   });

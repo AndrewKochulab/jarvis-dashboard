@@ -107,7 +107,8 @@
       "zoomMin": 0.92,
       "zoomMax": 1.08,
       "terminal": {
-        "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault"
+        "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault",
+        "showCommand": false
       }
     },
     "systemDiagnostics": {
