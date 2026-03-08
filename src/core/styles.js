@@ -79,6 +79,14 @@ styleEl.textContent = `
     0%   { transform: rotate(0deg) translateX(34px) rotate(0deg); }
     100% { transform: rotate(360deg) translateX(34px) rotate(-360deg); }
   }
+  @keyframes jarvisTerminalSlideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes jarvisTerminalSlideOut {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-8px); }
+  }
 `;
 
 return styleEl;

@@ -46,7 +46,7 @@
 - **Agent Cards** — Visual AI agent fleet with unique robot avatars, skill pills, live status, and memory freshness
 
 ### Productivity
-- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and launch Claude Code in Terminal with your voice message
+- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel — no app-switching required
 - **Focus Timer** — Pomodoro timer with circular progress, customizable work/break presets, and automatic vault logging
 - **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags and optional voice-to-text dictation
 
@@ -105,7 +105,7 @@
   <tr>
     <td align="center" width="50%">
       <strong>JARVIS Voice Command</strong><br>
-      <em>Arc reactor button — speak to launch Claude Code</em><br><br>
+      <em>Arc reactor button — speak and get streamed Claude Code responses inline</em><br><br>
       <img src="assets/widgets/jarvis-voice-command.png" alt="JARVIS Voice Command" width="100%" />
     </td>
     <td align="center" width="50%">
@@ -454,7 +454,10 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 "voiceCommand": {
   "enabled": true,
   "zoomMin": 0.92,
-  "zoomMax": 1.08
+  "zoomMax": 1.08,
+  "terminal": {
+    "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault"
+  }
 }
 ```
 
@@ -463,8 +466,10 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 | `enabled` | `true` | Show/hide the voice command widget |
 | `zoomMin` | `0.92` | Minimum scale for the recording zoom-wave animation |
 | `zoomMax` | `1.08` | Maximum scale for the recording zoom-wave animation |
+| `terminal.projectPath` | Vault path | Working directory for the `claude` child process. `~` is expanded automatically. |
+| `terminal.claudePath` | Auto-detected | Override path to `claude` binary. By default searches `~/.local/bin/`, `/usr/local/bin/`, `/opt/homebrew/bin/`. |
 
-The widget reuses `communicationLink.terminalApp` for the terminal application and the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition.
+The widget reuses the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition.
 
 #### Communication Link
 
@@ -541,22 +546,36 @@ Three visualization panels:
 
 ### JARVIS Voice Command
 
-An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. experience to your dashboard. Speak a command, and it launches Claude Code in Terminal with your voice message.
+An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. experience to your dashboard. Speak a command, and Claude Code responds directly inside Obsidian — streaming token-by-token into a built-in terminal panel. No app-switching required.
+
+<p align="center">
+  <video src="assets/jarvis-realtime-testing.mov" width="100%" controls></video>
+</p>
 
 **How it works:**
 1. Tap (or long-press) the circular button to start recording
 2. Speak your command to JARVIS
 3. Tap again (or release) to stop recording
 4. Audio is transcribed offline via whisper-cpp
-5. Terminal opens, navigates to your vault, and launches `claude` with your message
+5. A terminal panel slides open below the arc reactor
+6. `claude --print` spawns as a child process inside Obsidian's Electron runtime
+7. Response streams in real-time, token-by-token, into the terminal panel
+
+**Integrated terminal panel:**
+- Styled to match the Communication Link widget (monospace font, dark panel, cyan accents)
+- **Header bar** with close button, status badge (Running / Done / Error), and copy-to-clipboard button
+- **Scrollable output** with auto-scroll during streaming
+- **Command echo** — shows the exact `claude --print` command at the top
+- Slide-in/slide-out animations for smooth open/close transitions
 
 **Interaction modes:**
 
 | Action | Behavior |
 |---|---|
-| **Tap** | Starts recording. Tap again to stop, transcribe, and launch. |
-| **Long-press** (hold > 300ms) | Starts recording on hold. Release to stop, transcribe, and launch. |
+| **Tap** | Starts recording. Tap again to stop, transcribe, and stream. |
+| **Long-press** (hold > 300ms) | Starts recording on hold. Release to stop, transcribe, and stream. |
 | **Escape** (while recording) | Cancels recording without launching. |
+| **Escape** (while streaming) | Kills the Claude process and closes the panel. |
 
 **Visual states:**
 
@@ -565,15 +584,29 @@ An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. ex
 | Idle | "J" letter with breathing animation | Slow rotation (12s), subtle glow | "Tap to speak to JARVIS" |
 | Recording | MM:SS timer only | Fast rotation (3s), synced breathing + zoom-wave | "Recording — Tap to Send" |
 | Transcribing | Hourglass icon | Moderate rotation (6s) | "Processing Voice..." |
-| Launching | Green checkmark | Brief burst | "Launching Claude..." |
+| Launching | Rocket icon | Brief burst | "Launching Claude..." |
+| Streaming | Pulsing dot | Active rotation | "Claude is responding..." |
+| Done | Green checkmark | Settled | "Response complete" |
+| Error | Red X | Settled | Error message |
+
+**Technical details:**
+- Spawns `claude -p --output-format stream-json --include-partial-messages` as a child process via Node.js `child_process.spawn()`
+- Parses newline-delimited JSON stream, extracting `content_block_delta` events for real-time text display
+- Falls back to `result` event if streaming deltas are missed
+- Auto-detects `claude` binary path (`~/.local/bin/`, `/usr/local/bin/`, `/opt/homebrew/bin/`) — configurable via `terminal.claudePath`
+- Strips `CLAUDECODE` env var from child process to prevent nested session errors
+- Closes stdin immediately after spawn (required for `claude -p` to begin processing)
+- Process cleanup on widget destroy, escape key, or panel close
 
 **Features:**
 - Stylized "J" letter icon with monospace font and cyan glow
 - Concentric animated rings with orbiting particle dots
 - Synchronized breathing and zoom-wave animations during recording (configurable via `zoomMin`/`zoomMax`)
 - Ripple effect on recording start
-- Escape key cancels recording
-- Transcribed text preview before terminal launch
+- Real-time token-by-token streaming — responses appear as they're generated
+- Copy full response to clipboard with one click
+- Escape key cancels recording or kills an active stream
+- Transcribed text preview before streaming begins
 - Reuses Voice Capture prerequisites (whisper-cpp) — see [Voice Capture](#voice-capture) below
 - Graceful disabled state when whisper-cpp is not installed
 
@@ -767,7 +800,6 @@ const WIDGET_MAP = {
 
 | Feature | API | Alternative for Other OS |
 |---|---|---|
-| Launch Terminal | `osascript` | Change `terminalApp` in config; Linux users can modify the launch command |
 | Open Apps | `open -a` | Linux: `xdg-open`; Windows: `start` |
 | Open URLs | `open` | Linux: `xdg-open`; Windows: `start` |
 
@@ -795,7 +827,7 @@ jarvis_dashboard/
       Jarvis-Registry.md            Agent definitions
     core/
       theme.js                      Theme colors & responsive sizing
-      styles.js                     CSS animations (19 keyframes)
+      styles.js                     CSS animations (21 keyframes)
       helpers.js                    Utilities: el(), formatters
     services/
       session-parser.js             JSONL transcript parsing
@@ -808,7 +840,7 @@ jarvis_dashboard/
       system-diagnostics.js         Stats cards
       agent-cards.js                Robot avatars & agent grid
       activity-analytics.js         Heatmap, charts
-      jarvis-voice-command.js       Arc reactor voice command button
+      jarvis-voice-command.js       Arc reactor voice command with integrated terminal
       communication-link.js         Terminal widget
       focus-timer.js                Pomodoro timer
       quick-capture.js              Note capture with voice dictation

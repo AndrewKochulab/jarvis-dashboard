@@ -105,7 +105,10 @@
     "voiceCommand": {
       "enabled": true,
       "zoomMin": 0.92,
-      "zoomMax": 1.08
+      "zoomMax": 1.08,
+      "terminal": {
+        "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault"
+      }
     },
     "systemDiagnostics": {
       "periodDays": 30,
