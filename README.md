@@ -549,7 +549,7 @@ Three visualization panels:
 An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. experience to your dashboard. Speak a command, and Claude Code responds directly inside Obsidian — streaming token-by-token into a built-in terminal panel. No app-switching required.
 
 <p align="center">
-  <video src="assets/jarvis-realtime-testing.mov" width="100%" controls></video>
+  <img src="assets/jarvis-realtime-testing.gif" alt="JARVIS Voice Command Demo" width="100%" />
 </p>
 
 **How it works:**
