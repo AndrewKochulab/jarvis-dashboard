@@ -15,6 +15,9 @@ const termCfg = cmdCfg.terminal || {};
 const termProjectPath = termCfg.projectPath || null;
 const showCommand = termCfg.showCommand !== false;
 
+// ── Personality config ──
+const personalityCfg = cmdCfg.personality || {};
+
 // ── Resolve claude binary path (same pattern as whisper-cli in voice-service.js) ──
 const claudeSearchPaths = [
   nodePath.join(require("os").homedir(), ".local", "bin", "claude"),
@@ -113,10 +116,23 @@ function detectNewSession(beforeSet) {
   } catch { return null; }
 }
 
+function buildPersonalityPrompt() {
+  const template = personalityCfg.prompt;
+  if (!template) return null;
+  const name = personalityCfg.userName || "sir";
+  const assistant = personalityCfg.assistantName || "JARVIS";
+  return template.replace(/\{userName\}/g, name).replace(/\{assistantName\}/g, assistant);
+}
+
 function buildClaudeArgs(text) {
   const args = [];
   if (currentSessionId) args.push("--resume", currentSessionId);
-  args.push("-p", "--output-format", "stream-json", "--include-partial-messages", text);
+  args.push("-p", "--output-format", "stream-json", "--include-partial-messages");
+  const model = cmdCfg.model || null;
+  if (model) args.push("--model", model);
+  const personality = buildPersonalityPrompt();
+  if (personality) args.push("--append-system-prompt", personality);
+  args.push(text);
   return args;
 }
 
@@ -1092,6 +1108,7 @@ function launchClaudeInPanel(text) {
   let lineBuf = "";
   let currentTurnBuffer = "";
   let speakBuffer = "";
+  let speakFlushTimer = null;
 
   claudeProcess.stdout.on("data", (chunk) => {
     lineBuf += chunk.toString("utf8");
@@ -1120,6 +1137,16 @@ function launchClaudeInPanel(text) {
               const sentence = match[1].trim();
               if (sentence) ttsService.speak(stripMarkdown(sentence));
               speakBuffer = speakBuffer.slice(match[0].length);
+            }
+            // Debounced flush: speak buffered text if no new tokens arrive within 500ms
+            if (speakFlushTimer) clearTimeout(speakFlushTimer);
+            if (speakBuffer.trim()) {
+              speakFlushTimer = setTimeout(() => {
+                if (speakBuffer.trim()) {
+                  ttsService.speak(stripMarkdown(speakBuffer.trim()));
+                  speakBuffer = "";
+                }
+              }, 500);
             }
           }
         }
@@ -1161,7 +1188,8 @@ function launchClaudeInPanel(text) {
     terminalOutput.appendChild(completeLine);
     terminalOutput.scrollTop = terminalOutput.scrollHeight;
 
-    // TTS: speak any remaining text that didn't end with punctuation
+    // TTS: clear flush timer and speak any remaining text
+    if (speakFlushTimer) clearTimeout(speakFlushTimer);
     if (ttsService && ttsService.isEnabled && !ttsService.isMuted && speakBuffer.trim()) {
       ttsService.speak(stripMarkdown(speakBuffer.trim()));
     }

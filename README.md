@@ -453,6 +453,7 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 ```json
 "voiceCommand": {
   "enabled": true,
+  "model": "sonnet",
   "zoomMin": 0.92,
   "zoomMax": 1.08,
   "terminal": {
@@ -464,6 +465,7 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 | Key | Default | Description |
 |---|---|---|
 | `enabled` | `true` | Show/hide the voice command widget |
+| `model` | Claude default | Claude model alias (`"sonnet"`, `"opus"`, `"haiku"`) or full model ID. Applied on every invocation, including resumed sessions. Set to `null` or omit to use Claude Code's default. |
 | `zoomMin` | `0.92` | Minimum scale for the recording zoom-wave animation |
 | `zoomMax` | `1.08` | Maximum scale for the recording zoom-wave animation |
 | `terminal.projectPath` | Vault path | Working directory for the `claude` child process. `~` is expanded automatically. |
@@ -471,6 +473,26 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 | `terminal.showCommand` | `true` | Show/hide the CLI command prefix (`claude --print`, `claude --resume`) in the terminal echo line. When `false`, only `$ <your message>` is shown. |
 
 The widget reuses the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition and supports [Text-to-Speech](#text-to-speech) for voice responses.
+
+##### Personality Configuration
+
+Give JARVIS an Iron Man-inspired personality. Responses become concise, witty, and TTS-optimized.
+
+```json
+"personality": {
+  "userName": "sir",
+  "assistantName": "JARVIS",
+  "prompt": "You are {assistantName}, a highly capable AI assistant inspired by the J.A.R.V.I.S. system. Address the user as \"{userName}\".\n\nRules:\n- Be concise, precise, efficient. Short, direct answers.\n- Keep responses to 1-3 sentences. If the topic requires more, give the essential answer first, then ask if {userName} wants details.\n- Open with brief acknowledgments when natural (\"Right away, {userName}\", \"Certainly, {userName}\", \"Of course\"). Vary naturally.\n- Matter-of-fact with dry wit. Brief humor welcome; never forced.\n- For complex tasks, give a crisp status first (\"Running diagnostics now, {userName}\").\n- No filler phrases, caveats, or corporate language.\n- If you don't know something, say so directly.\n- Minimal markdown — responses are spoken aloud via TTS. Avoid code blocks, tables, and lists unless explicitly requested.\n- You are {assistantName}, not \"Claude\" or \"an AI assistant\". Never break character.\n- Optimize for audible clarity: short sentences, natural pauses at periods, no parenthetical asides."
+}
+```
+
+| Key | Default | Description |
+|---|---|---|
+| `personality.userName` | `"sir"` | How the assistant addresses the user. Use your name, a title, or any preferred form of address. |
+| `personality.assistantName` | `"JARVIS"` | The assistant's self-reference name. Change to `"FRIDAY"` or any custom name. |
+| `personality.prompt` | JARVIS preset | Full personality prompt text. Supports `{userName}` and `{assistantName}` placeholders which are substituted at runtime. Edit freely to customize the personality. Set to `null` to disable personality entirely — only your raw message is sent to Claude. |
+
+The personality prompt is injected via `--append-system-prompt` and is never visible in the terminal output. It composes with any existing `CLAUDE.md` instructions in the project directory.
 
 ##### Text-to-Speech Configuration
 
