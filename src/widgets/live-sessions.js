@@ -155,11 +155,13 @@ function buildSessionRow(session, dotChars, isFirst) {
     fontFamily: "'SF Mono', 'Fira Code', monospace",
   }, describeAction(session.currentTool, session.toolInput, session.stopReason)));
 
-  line2.appendChild(el("span", {
+  const dotSpan = el("span", {
     fontSize: isNarrow ? "11px" : "12px", color: T.accent,
     fontFamily: "'SF Mono', 'Fira Code', monospace",
     fontWeight: "700", minWidth: "18px",
-  }, dotChars));
+  }, dotChars);
+  dotSpan.setAttribute("data-dots", "1");
+  line2.appendChild(dotSpan);
 
   return row;
 }
@@ -219,66 +221,94 @@ function buildSubagentRow(subagent, dotChars) {
     fontFamily: "'SF Mono', 'Fira Code', monospace",
   }, describeAction(subagent.currentTool, subagent.toolInput, subagent.stopReason)));
 
-  line2.appendChild(el("span", {
+  const subDotSpan = el("span", {
     fontSize: isNarrow ? "10px" : "11px", color: T.orange,
     fontFamily: "'SF Mono', 'Fira Code', monospace",
     fontWeight: "700", minWidth: "14px",
-  }, dotChars));
+  }, dotChars);
+  subDotSpan.setAttribute("data-dots", "1");
+  line2.appendChild(subDotSpan);
 
   return row;
 }
 
 let dotFrame = 0;
+let lastSessionsHash = "";
 
 function refresh() {
+  // Skip when dashboard is not visible
+  if (ctx._paused) return;
+  // Skip aggressive DOM rebuild during JARVIS streaming to prevent re-render triggers
+  if (ctx._jarvisStreaming) {
+    dotFrame = (dotFrame + 1) % 4;
+    return;
+  }
   const sessions = sessionParser.getAllSessions();
   dotFrame = (dotFrame + 1) % 4;
   const dotChars = ".".repeat(dotFrame || 1);
   const hasActive = sessions.length > 0;
 
-  if (hasActive) {
-    liveDot.style.background = T.green;
-    liveDot.style.boxShadow = `0 0 6px ${T.green}, 0 0 12px ${T.green}66`;
-    liveDot.style.animation = "jarvisPulse 1.5s ease-in-out infinite";
-    const totalSubs = sessions.reduce((sum, s) => sum + (s.subagents?.length || 0), 0);
-    if (totalSubs > 0) {
-      const mainLabel = sessions.length === 1 ? "Live Session" : `Live Sessions (${sessions.length})`;
-      statusLabel.textContent = `${mainLabel} + ${totalSubs} agent${totalSubs > 1 ? "s" : ""}`;
-    } else {
-      statusLabel.textContent = sessions.length === 1 ? "Live Session" : `Live Sessions (${sessions.length})`;
-    }
-    statusLabel.style.color = T.green;
-    accentLine.style.background = `linear-gradient(90deg, transparent, ${T.green}, transparent)`;
-    panel.style.borderColor = T.green + "30";
-    panel.style.boxShadow = `0 0 20px ${T.green}10, inset 0 0 30px ${T.green}05`;
+  // Build a lightweight hash to detect data changes (avoid full DOM rebuild when unchanged)
+  const hash = sessions.map(s =>
+    `${s.slug}|${s.model}|${s.currentTool}|${s.ageSeconds > 5 ? "o" : "n"}|${(s.subagents || []).map(sub =>
+      `${sub.slug}|${sub.model}|${sub.currentTool}|${sub.ageSeconds > 5 ? "o" : "n"}`
+    ).join(",")}`
+  ).join(";") + "|" + hasActive;
+  const dataChanged = hash !== lastSessionsHash;
+  lastSessionsHash = hash;
 
-    sessionsContainer.style.display = "block";
-    sessionsContainer.innerHTML = "";
-    sessions.forEach((s, i) => {
-      sessionsContainer.appendChild(buildSessionRow(s, dotChars, i === 0));
-      if (s.subagents?.length > 0) {
-        s.subagents.forEach(sub => {
-          sessionsContainer.appendChild(buildSubagentRow(sub, dotChars));
-        });
+  if (hasActive) {
+    if (dataChanged) {
+      liveDot.style.background = T.green;
+      liveDot.style.boxShadow = `0 0 6px ${T.green}, 0 0 12px ${T.green}66`;
+      liveDot.style.animation = "jarvisPulse 1.5s ease-in-out infinite";
+      const totalSubs = sessions.reduce((sum, s) => sum + (s.subagents?.length || 0), 0);
+      if (totalSubs > 0) {
+        const mainLabel = sessions.length === 1 ? "Live Session" : `Live Sessions (${sessions.length})`;
+        statusLabel.textContent = `${mainLabel} + ${totalSubs} agent${totalSubs > 1 ? "s" : ""}`;
+      } else {
+        statusLabel.textContent = sessions.length === 1 ? "Live Session" : `Live Sessions (${sessions.length})`;
       }
-    });
-    hint.style.display = "none";
+      statusLabel.style.color = T.green;
+      accentLine.style.background = `linear-gradient(90deg, transparent, ${T.green}, transparent)`;
+      panel.style.borderColor = T.green + "30";
+      panel.style.boxShadow = `0 0 20px ${T.green}10, inset 0 0 30px ${T.green}05`;
+
+      sessionsContainer.style.display = "block";
+      sessionsContainer.innerHTML = "";
+      sessions.forEach((s, i) => {
+        sessionsContainer.appendChild(buildSessionRow(s, dotChars, i === 0));
+        if (s.subagents?.length > 0) {
+          s.subagents.forEach(sub => {
+            sessionsContainer.appendChild(buildSubagentRow(sub, dotChars));
+          });
+        }
+      });
+      hint.style.display = "none";
+    } else {
+      // Data unchanged — only update the animated dot characters
+      sessionsContainer.querySelectorAll("[data-dots]").forEach(el => {
+        el.textContent = dotChars;
+      });
+    }
   } else {
-    liveDot.style.background = T.textDim;
-    liveDot.style.boxShadow = "none";
-    liveDot.style.animation = "none";
-    statusLabel.textContent = "No Active Session";
-    statusLabel.style.color = T.textDim;
-    accentLine.style.background = `linear-gradient(90deg, transparent, ${T.textDim}, transparent)`;
-    panel.style.borderColor = T.panelBorder;
-    panel.style.boxShadow = "none";
-    sessionsContainer.style.display = "none";
-    sessionsContainer.innerHTML = "";
-    hint.style.display = "block";
+    if (dataChanged) {
+      liveDot.style.background = T.textDim;
+      liveDot.style.boxShadow = "none";
+      liveDot.style.animation = "none";
+      statusLabel.textContent = "No Active Session";
+      statusLabel.style.color = T.textDim;
+      accentLine.style.background = `linear-gradient(90deg, transparent, ${T.textDim}, transparent)`;
+      panel.style.borderColor = T.panelBorder;
+      panel.style.boxShadow = "none";
+      sessionsContainer.style.display = "none";
+      sessionsContainer.innerHTML = "";
+      hint.style.display = "block";
+    }
   }
 
-  // Update agent card animations
-  if (agentCardRefs.size > 0) {
+  // Update agent card animations (only when data changed)
+  if (dataChanged && agentCardRefs.size > 0) {
     const activeAgents = new Set();
     sessions.forEach(s => {
       if (s.activeAgent) activeAgents.add(s.activeAgent);
@@ -316,6 +346,7 @@ function refresh() {
 }
 
 refresh();
-ctx.intervals.push(setInterval(refresh, 3000));
+const liveSessionsInterval = config.performance?.liveSessionsIntervalMs || 3000;
+ctx.intervals.push(setInterval(refresh, liveSessionsInterval));
 
 return section;

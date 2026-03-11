@@ -6,9 +6,16 @@ const { nodeFs, nodePath, config, agentNames, skillToAgent } = ctx;
 
 const agentCache = new Map();
 const subagentDescCache = new Map();
+const sessionFileCache = new Map(); // filePath -> { mtimeMs, result }
+const subagentDirCache = new Map(); // subagentsDir -> { mtimeMs, files }
 let discoveredProjects = null;
 let discoveredAt = 0;
-const SCAN_CACHE_MS = 60000;
+const SCAN_CACHE_MS = config.performance?.projectDiscoveryCacheMs || 300000;
+
+// Cache for isClaudeProcessRunning() to avoid spawning pgrep every cycle
+let _processCache = null;
+let _processCacheAt = 0;
+const PROCESS_CACHE_MS = config.performance?.processCheckCacheMs || 10000;
 
 function expandHome(p) {
   if (p.startsWith("~")) {
@@ -45,15 +52,20 @@ function getTrackedProjects() {
 }
 
 function isClaudeProcessRunning() {
+  if (_processCache !== null && Date.now() - _processCacheAt < PROCESS_CACHE_MS) {
+    return _processCache;
+  }
   try {
     const out = require("child_process").execSync(
       "pgrep -fa 'claude' 2>/dev/null || true",
       { encoding: "utf8", timeout: 3000 }
     );
-    return out.split("\n").some(line =>
+    _processCache = out.split("\n").some(line =>
       line.includes("/claude") && !line.includes("pgrep")
     );
-  } catch { return false; }
+  } catch { _processCache = false; }
+  _processCacheAt = Date.now();
+  return _processCache;
 }
 
 function parseSessionFile(filePath, ageSeconds) {
@@ -222,7 +234,17 @@ function getSubagentsForSession(projPath, sessionFileName, processRunning) {
       if (age > 120) continue;
 
       const fp = nodePath.join(subagentsDir, file.name);
-      const info = parseSessionFile(fp, age);
+
+      // Use mtime-based cache for subagent files too
+      const cached = sessionFileCache.get(fp);
+      let info;
+      if (cached && cached.mtimeMs === file.mtime) {
+        info = cached.result ? { ...cached.result, ageSeconds: Math.round(age) } : null;
+      } else {
+        info = parseSessionFile(fp, age);
+        sessionFileCache.set(fp, { mtimeMs: file.mtime, result: info });
+      }
+
       if (info) {
         const agentId = file.name.replace("agent-", "").replace(".jsonl", "");
         info.isSubagent = true;
@@ -272,7 +294,17 @@ function getAllSessions() {
         if (age > 30 && !processRunning) continue;
         if (age > 120) continue;
         const fp = nodePath.join(projPath, file.name);
-        const info = parseSessionFile(fp, age);
+
+        // Use mtime-based cache to avoid re-reading unchanged files
+        const cached = sessionFileCache.get(fp);
+        let info;
+        if (cached && cached.mtimeMs === file.mtime) {
+          info = cached.result ? { ...cached.result, ageSeconds: Math.round(age) } : null;
+        } else {
+          info = parseSessionFile(fp, age);
+          sessionFileCache.set(fp, { mtimeMs: file.mtime, result: info });
+        }
+
         if (info) {
           info.project = proj.label;
           getSubagentDescriptions(fp);

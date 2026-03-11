@@ -6,7 +6,9 @@ const { nodeFs, nodePath, config } = ctx;
 const { spawn } = require("child_process");
 
 const voiceCfg = config.widgets?.quickCapture?.voice || {};
-const voiceLang = voiceCfg.lang || "en";
+const langCfg = config.language || {};
+const sttMode = langCfg.stt || voiceCfg.lang || "en";
+const voiceLang = sttMode; // "auto" or specific language code
 
 const whisperSearchPaths = ["/opt/homebrew/bin/whisper-cli", "/usr/local/bin/whisper-cli"];
 let whisperPath = voiceCfg.whisperPath || null;
@@ -15,7 +17,16 @@ if (!whisperPath) {
     if (nodeFs.existsSync(p)) { whisperPath = p; break; }
   }
 }
-const whisperModel = voiceCfg.whisperModel || "/opt/homebrew/share/whisper-cpp/ggml-base.en.bin";
+const companionCfg = config.companion || {};
+const whisperModel = voiceCfg.whisperModel || companionCfg.whisperModel || "/opt/homebrew/share/whisper-cpp/ggml-base.bin";
+let autoDetect = sttMode === "auto";
+
+// Validate: English-only model cannot auto-detect
+if (autoDetect && whisperModel.includes(".en.")) {
+  console.warn("[VoiceService] WARNING: Whisper model appears English-only (.en suffix). Auto-detect disabled.");
+  autoDetect = false;
+}
+
 const available = voiceCfg.enabled !== false && !!whisperPath && nodeFs.existsSync(whisperModel);
 
 let state = "idle";
@@ -63,7 +74,7 @@ async function startRecording() {
 async function stopAndTranscribe() {
   if (state !== "recording" || !activeRecorder || activeRecorder.state === "inactive") {
     setState("idle");
-    return "";
+    return { text: "", detectedLang: null };
   }
 
   const chunks = await new Promise((resolve) => {
@@ -73,7 +84,7 @@ async function stopAndTranscribe() {
   if (activeStream) { activeStream.getTracks().forEach(t => t.stop()); activeStream = null; }
   activeRecorder = null;
 
-  if (chunks.length === 0) { setState("idle"); return ""; }
+  if (chunks.length === 0) { setState("idle"); return { text: "", detectedLang: null }; }
 
   setState("transcribing");
 
@@ -98,12 +109,13 @@ async function stopAndTranscribe() {
   return new Promise((resolve, reject) => {
     whisperProcess = spawn(whisperPath, [
       "-m", whisperModel, "-f", tmpPath,
-      "--no-timestamps", "-l", voiceLang, "--print-progress", "false",
+      "--no-timestamps", "-l", autoDetect ? "auto" : voiceLang,
     ]);
 
     let result = "";
+    let errorOutput = "";
     whisperProcess.stdout.on("data", (data) => { result += data.toString(); });
-    whisperProcess.stderr.on("data", () => {});
+    whisperProcess.stderr.on("data", (data) => { errorOutput += data.toString(); });
 
     whisperProcess.on("close", (code) => {
       whisperProcess = null;
@@ -111,8 +123,27 @@ async function stopAndTranscribe() {
       const text = (code === 0 && result.trim())
         ? result.trim().replace(/^\[.*?\]\s*/gm, "").trim()
         : "";
+
+      // Parse detected language from stderr when auto-detect is on
+      let detectedLang = null;
+      if (autoDetect) {
+        const langMatch = errorOutput.match(/auto-detected language:\s*(\w+)/);
+        if (langMatch) detectedLang = langMatch[1];
+        console.log(`[VoiceService] Whisper autoDetect=${autoDetect}, raw stderr lang match="${langMatch?.[0]}", detectedLang=${detectedLang}`);
+      } else {
+        console.log(`[VoiceService] autoDetect is OFF, sttMode=${sttMode}`);
+      }
+
+      // Filter detected language against supported list
+      const supportedLangs = langCfg.supported || {};
+      if (detectedLang && Object.keys(supportedLangs).length > 0 && !supportedLangs[detectedLang]) {
+        console.log(`[VoiceService] Detected '${detectedLang}' not in supported languages (keys=${JSON.stringify(Object.keys(supportedLangs))}), falling back to '${langCfg.fallback || "en"}'`);
+        detectedLang = langCfg.fallback || "en";
+      }
+
+      console.log(`[VoiceService] Final result: detectedLang=${detectedLang}, text="${text.slice(0, 50)}…"`);
       setState("idle");
-      resolve(text);
+      resolve({ text, detectedLang });
     });
 
     whisperProcess.on("error", (err) => {

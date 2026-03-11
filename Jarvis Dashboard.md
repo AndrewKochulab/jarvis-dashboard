@@ -7,6 +7,18 @@ cssclasses:
 
 ```dataviewjs
 const container = this.container;
+
+// ── Prevent full re-render on vault file changes ──
+// Dataview re-runs this block on every file change. Reuse existing DOM
+// instead of rebuilding the entire dashboard (preserves terminal state, timers, etc.).
+// Uses labeled block + break (DataviewJS uses eval, so bare `return` is illegal).
+__jarvis__: {
+if (window.__jarvisDashboard?.wrapper) {
+  container.appendChild(window.__jarvisDashboard.styleEl);
+  container.appendChild(window.__jarvisDashboard.wrapper);
+  break __jarvis__;
+}
+
 const nodeFs = require("fs");
 const nodePath = require("path");
 
@@ -38,6 +50,9 @@ container.appendChild(styleEl);
 const helpers = loadModule("core/helpers.js")({ T });
 const { el, fmtTokens, fmtCost, formatModel, describeAction, getModelFamily } = helpers;
 
+// ── Load core: markdown renderer ──
+const markdownRenderer = loadModule("core/markdown-renderer.js")({ el, T, config });
+
 // ── Load registry ──
 const registryPath = config.widgets?.agentCards?.registryPath || "src/config/Jarvis-Registry";
 const dashboardFolder = currentFilePath.replace(/\/[^/]+$/, "");
@@ -57,11 +72,13 @@ const ctx = {
   isNarrow, isMedium, isWide, leafEl,
   nodeFs, nodePath, CARD_PAD, FONT_SM,
   fmtTokens, fmtCost, formatModel, describeAction, getModelFamily,
+  markdownRenderer,
   agents, agentNames, skillToAgent,
   agentCardRefs: new Map(),
   onStatsReady: [],
   intervals: [],
   cleanups: [],
+  _paused: false,
 };
 
 // ── Load services ──
@@ -72,6 +89,30 @@ ctx.voiceService = loadModule("services/voice-service.js")(ctx);
 ctx.cleanups.push(() => ctx.voiceService.cleanup());
 ctx.ttsService = loadModule("services/tts-service.js")(ctx);
 ctx.cleanups.push(() => ctx.ttsService.cleanup());
+
+// ── Load network client for remote voice mode ──
+if (config.widgets?.voiceCommand?.mode === "remote") {
+  let localConfig = {};
+  try {
+    localConfig = JSON.parse(nodeFs.readFileSync(
+      nodePath.join(srcDir, "config", "config.local.json"), "utf8"));
+    function deepMerge(target, source) {
+      const result = { ...target };
+      for (const key of Object.keys(source)) {
+        if (source[key] && typeof source[key] === "object" && !Array.isArray(source[key])) {
+          result[key] = deepMerge(result[key] || {}, source[key]);
+        } else {
+          result[key] = source[key];
+        }
+      }
+      return result;
+    }
+    Object.assign(config, deepMerge(config, localConfig));
+  } catch {}
+  ctx._localConfig = localConfig;
+  ctx.networkClient = loadModule("services/network-client.js")(ctx);
+  ctx.cleanups.push(() => ctx.networkClient.cleanup());
+}
 
 // ── Create main wrapper ──
 const wrapper = el("div", {
@@ -162,15 +203,47 @@ setTimeout(() => {
   } catch {}
 }, 100);
 
-// ── Cleanup observer ──
+// ── Pause all work when dashboard is not visible ──
+const _visibilityHandler = () => { ctx._paused = document.hidden; };
+document.addEventListener("visibilitychange", _visibilityHandler);
+ctx.cleanups.push(() => document.removeEventListener("visibilitychange", _visibilityHandler));
+
+// ── Store dashboard reference for re-render prevention ──
+window.__jarvisDashboard = { wrapper, styleEl };
+
+// ── Cleanup (runs when note is actually closed, not on Dataview re-render) ──
+function dashboardCleanup() {
+  ctx.intervals.forEach(id => clearInterval(id));
+  ctx.cleanups.forEach(fn => { try { fn(); } catch(e) {} });
+  window.__jarvisDashboard = null;
+}
+
+// MutationObserver: detect when wrapper is removed from DOM
+// Checks wrapper (not container) because wrapper is re-parented across Dataview re-renders
+let cleanupTimer = null;
 const observer = new MutationObserver(() => {
-  if (!document.contains(container)) {
-    ctx.intervals.forEach(id => clearInterval(id));
-    ctx.cleanups.forEach(fn => { try { fn(); } catch(e) {} });
-    observer.disconnect();
+  if (!document.contains(wrapper)) {
+    if (!cleanupTimer) {
+      cleanupTimer = setTimeout(() => {
+        if (!document.contains(wrapper)) {
+          observer.disconnect();
+          dashboardCleanup();
+        }
+        cleanupTimer = null;
+      }, 500);
+    }
   }
 });
-observer.observe(document.body, { childList: true, subtree: true });
+const observeTarget = container.parentElement || document.body;
+observer.observe(observeTarget, { childList: true, subtree: false });
+
+// Fallback: periodic check in case MutationObserver misses note close
+ctx.intervals.push(setInterval(() => {
+  if (!document.contains(wrapper)) {
+    observer.disconnect();
+    dashboardCleanup();
+  }
+}, 10000));
 
 // ── Responsive resize ──
 const resizeTarget = leafEl || container;
@@ -193,4 +266,5 @@ const ro = new ResizeObserver(() => {
   });
 });
 ro.observe(resizeTarget);
+} // end __jarvis__ block
 ```

@@ -46,6 +46,7 @@ function buildRobot(agentName, color) {
   const robotWrap = el("div", {
     width: "56px", height: "64px", position: "relative",
     animation: "jarvisBreathing 2.5s ease-in-out infinite", flexShrink: "0",
+    willChange: "transform",
   });
 
   // Antenna
@@ -221,6 +222,7 @@ agents.forEach((agent, idx) => {
     boxShadow: `0 0 6px ${agentColor}, 0 0 10px ${agentColor}`,
     animation: "jarvisOrbitDot 3s linear infinite",
     display: "none", pointerEvents: "none", zIndex: "3",
+    willChange: "transform",
   });
   robotOuter.appendChild(orbitDot);
 
