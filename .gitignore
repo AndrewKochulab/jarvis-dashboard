@@ -3,3 +3,11 @@ CLAUDE.md
 .DS_Store
 *.json.bak
 node_modules/
+
+# Companion server
+companion/certs/
+companion/.env
+companion/node_modules/
+
+# Local config (contains auth token)
+src/config/config.local.json

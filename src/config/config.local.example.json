@@ -1,0 +1,7 @@
+{
+  "network": {
+    "host": "your-mac.local",
+    "token": "YOUR_64_CHAR_HEX_TOKEN_FROM_SETUP",
+    "tailscaleHost": null
+  }
+}
