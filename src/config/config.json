@@ -2,7 +2,7 @@
   "dashboard": {
     "title": "J.A.R.V.I.S.",
     "subtitle": "Just A Rather Very Intelligent System",
-    "showScanLine": true,
+    "showScanLine": false,
     "statusText": "System Online"
   },
   "theme": {
@@ -61,7 +61,7 @@
       "voice": {
         "enabled": true,
         "lang": "en",
-        "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-base.en.bin"
+        "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-small.bin"
       }
     },
     "quickLaunch": {
@@ -104,17 +104,31 @@
     },
     "voiceCommand": {
       "enabled": true,
+      "mode": "local",
+      "remoteTts": "local",
       "model": "sonnet",
       "zoomMin": 0.92,
       "zoomMax": 1.08,
       "terminal": {
         "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault",
-        "showCommand": false
+        "showCommand": false,
+        "codeHighlighting": { "enabled": true }
       },
       "personality": {
         "userName": "sir",
         "assistantName": "JARVIS",
-        "prompt": "You are {assistantName}, a highly capable AI assistant inspired by the J.A.R.V.I.S. system. Address the user as \"{userName}\".\n\nRules:\n- Be concise, precise, efficient. Short, direct answers.\n- Keep responses to 1-3 sentences. If the topic requires more, give the essential answer first, then ask if {userName} wants details.\n- Open with brief acknowledgments when natural (\"Right away, {userName}\", \"Certainly, {userName}\", \"Of course\"). Vary naturally.\n- Matter-of-fact with dry wit. Brief humor welcome; never forced.\n- For complex tasks, give a crisp status first (\"Running diagnostics now, {userName}\").\n- No filler phrases, caveats, or corporate language.\n- If you don't know something, say so directly.\n- Minimal markdown — responses are spoken aloud via TTS. Avoid code blocks, tables, and lists unless explicitly requested.\n- You are {assistantName}, not \"Claude\" or \"an AI assistant\". Never break character.\n- Optimize for audible clarity: short sentences, natural pauses at periods, no parenthetical asides."
+        "prompt": "You are {assistantName}, a highly capable AI assistant inspired by the J.A.R.V.I.S. system. Address the user as \"{userName}\".\n\nRules:\n- Be concise, precise, efficient. Short, direct answers.\n- Keep responses to 1-3 sentences. If the topic requires more, give the essential answer first, then ask if {userName} wants details.\n- Open with brief acknowledgments when natural (\"Right away, {userName}\", \"Certainly, {userName}\", \"Of course\"). Vary naturally.\n- Matter-of-fact with dry wit. Brief humor welcome; never forced.\n- For complex tasks, give a crisp status first (\"Running diagnostics now, {userName}\").\n- No filler phrases, caveats, or corporate language.\n- If you don't know something, say so directly.\n- Minimal markdown — responses are spoken aloud via TTS. Avoid code blocks, tables, and lists unless explicitly requested.\n- You are {assistantName}, not \"Claude\" or \"an AI assistant\". Never break character.\n- Optimize for audible clarity: short sentences, natural pauses at periods, no parenthetical asides.",
+        "languageInstruction": "Always respond in the same language the user speaks. Supported languages: {languages}. Match the user's language exactly.\nCRITICAL for TTS: Your responses are synthesized by a text-to-speech engine that only understands the script of the response language. Never mix scripts in a response — transliterate or translate all foreign names and terms into the response language's script so every word is pronounceable by the TTS engine."
+      },
+      "interactive": {
+        "enabled": true,
+        "interactivePermissions": true,
+        "autoApproveTools": ["Read", "Glob", "Grep", "Agent", "WebSearch", "WebFetch", "Skill", "ToolSearch", "AskUserQuestion"],
+        "alwaysAskTools": ["Bash", "Write", "Edit"],
+        "permissionTimeout": 120000,
+        "questionTimeout": 120000,
+        "voiceResponseEnabled": true,
+        "batchQuestions": true
       },
       "tts": {
         "enabled": true,
@@ -135,6 +149,46 @@
       "periodDays": 30,
       "cacheDurationMs": 300000
     }
+  },
+  "network": {
+    "host": "your-mac.local",
+    "port": 7777,
+    "localPort": 7778,
+    "autoConnect": true,
+    "heartbeatInterval": 30000,
+    "reconnectMaxDelay": 30000,
+    "mobileTts": "server",
+    "audioSizeLimit": 10485760,
+    "connectionTimeout": 10000
+  },
+  "language": {
+    "stt": "auto",
+    "fallback": "en",
+    "piperModelsDir": "~/.config/piper",
+    "supported": {
+      "en": {
+        "label": "English",
+        "piper": {
+          "lengthScale": 0.72,
+          "sentenceSilence": 0.08
+        }
+      }
+    }
+  },
+  "companion": {
+    "ffmpegPath": "/opt/homebrew/bin/ffmpeg",
+    "whisperPath": "/opt/homebrew/bin/whisper-cli",
+    "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-small.bin",
+    "whisperLang": "auto",
+    "claudePath": null,
+    "maxConnections": 2,
+    "rateLimitPerMinute": 10,
+    "idleTimeoutMs": 300000
+  },
+  "performance": {
+    "liveSessionsIntervalMs": 3000,
+    "processCheckCacheMs": 10000,
+    "projectDiscoveryCacheMs": 300000
   },
   "pricing": {
     "opus": { "input": 15, "output": 75 },
