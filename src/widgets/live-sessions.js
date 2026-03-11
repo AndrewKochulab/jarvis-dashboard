@@ -2,7 +2,7 @@
 // Real-time Claude Code session monitoring with subagent tracking
 // Returns: HTMLElement (live sessions section)
 
-const { el, T, config, isNarrow, sessionParser, formatModel, describeAction, agentCardRefs } = ctx;
+const { el, T, config, isNarrow, sessionParser, formatModel, describeAction, agentCardRefs, animationsEnabled } = ctx;
 
 const section = el("div", {
   position: "relative",
@@ -45,6 +45,7 @@ const panel = el("div", {
   overflow: "hidden",
   transition: "border-color 0.5s ease, box-shadow 0.5s ease",
   animation: "jarvisCardFadeIn 0.5s ease-out 0.2s both",
+  contain: "layout style",
 });
 section.appendChild(panel);
 
@@ -236,9 +237,7 @@ let dotFrame = 0;
 let lastSessionsHash = "";
 
 function refresh() {
-  // Skip when dashboard is not visible
   if (ctx._paused) return;
-  // Skip aggressive DOM rebuild during JARVIS streaming to prevent re-render triggers
   if (ctx._jarvisStreaming) {
     dotFrame = (dotFrame + 1) % 4;
     return;
@@ -248,7 +247,6 @@ function refresh() {
   const dotChars = ".".repeat(dotFrame || 1);
   const hasActive = sessions.length > 0;
 
-  // Build a lightweight hash to detect data changes (avoid full DOM rebuild when unchanged)
   const hash = sessions.map(s =>
     `${s.slug}|${s.model}|${s.currentTool}|${s.ageSeconds > 5 ? "o" : "n"}|${(s.subagents || []).map(sub =>
       `${sub.slug}|${sub.model}|${sub.currentTool}|${sub.ageSeconds > 5 ? "o" : "n"}`
@@ -261,7 +259,7 @@ function refresh() {
     if (dataChanged) {
       liveDot.style.background = T.green;
       liveDot.style.boxShadow = `0 0 6px ${T.green}, 0 0 12px ${T.green}66`;
-      liveDot.style.animation = "jarvisPulse 1.5s ease-in-out infinite";
+      liveDot.style.animation = animationsEnabled ? "jarvisPulse 1.5s ease-in-out infinite" : "none";
       const totalSubs = sessions.reduce((sum, s) => sum + (s.subagents?.length || 0), 0);
       if (totalSubs > 0) {
         const mainLabel = sessions.length === 1 ? "Live Session" : `Live Sessions (${sessions.length})`;
@@ -286,7 +284,6 @@ function refresh() {
       });
       hint.style.display = "none";
     } else {
-      // Data unchanged — only update the animated dot characters
       sessionsContainer.querySelectorAll("[data-dots]").forEach(el => {
         el.textContent = dotChars;
       });
@@ -320,9 +317,9 @@ function refresh() {
       const isActive = activeAgents.has(name);
       if (isActive) {
         refs.card.dataset.agentActive = "true";
-        refs.glowRing.style.display = "block";
-        refs.orbitDot.style.display = "block";
-        refs.robot.style.animation = "jarvisBreathing 1.5s ease-in-out infinite";
+        refs.glowRing.style.display = animationsEnabled ? "block" : "none";
+        refs.orbitDot.style.display = animationsEnabled ? "block" : "none";
+        refs.robot.style.animation = animationsEnabled ? "jarvisBreathing 1.5s ease-in-out infinite" : "none";
         refs.sDot.style.background = T.accent;
         refs.sDot.style.boxShadow = `0 0 6px ${T.accent}`;
         refs.sText.textContent = "Working";
@@ -333,7 +330,7 @@ function refresh() {
         refs.card.dataset.agentActive = "false";
         refs.glowRing.style.display = "none";
         refs.orbitDot.style.display = "none";
-        refs.robot.style.animation = "jarvisBreathing 2.5s ease-in-out infinite";
+        refs.robot.style.animation = animationsEnabled ? "jarvisBreathing 2.5s ease-in-out infinite" : "none";
         refs.sDot.style.background = T.green;
         refs.sDot.style.boxShadow = "none";
         refs.sText.textContent = "Available";
@@ -347,6 +344,17 @@ function refresh() {
 
 refresh();
 const liveSessionsInterval = config.performance?.liveSessionsIntervalMs || 3000;
-ctx.intervals.push(setInterval(refresh, liveSessionsInterval));
+let liveId = setInterval(refresh, liveSessionsInterval);
+ctx.intervals.push(liveId);
+
+// Register with pausable system — fully stop interval when hidden
+ctx.registerPausable(
+  () => {
+    refresh(); // immediate catch-up on resume
+    liveId = setInterval(refresh, liveSessionsInterval);
+    ctx.intervals.push(liveId);
+  },
+  () => { clearInterval(liveId); }
+);
 
 return section;

@@ -188,7 +188,10 @@
   "performance": {
     "liveSessionsIntervalMs": 3000,
     "processCheckCacheMs": 10000,
-    "projectDiscoveryCacheMs": 300000
+    "projectDiscoveryCacheMs": 300000,
+    "animationsEnabled": true,
+    "clockIntervalMs": 1000,
+    "cleanupIntervalMs": 5000
   },
   "pricing": {
     "opus": { "input": 15, "output": 75 },

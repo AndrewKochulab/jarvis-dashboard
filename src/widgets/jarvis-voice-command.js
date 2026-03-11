@@ -2,10 +2,11 @@
 // Arc reactor-style circular button — record voice, transcribe, stream Claude response in-panel
 // Returns: HTMLElement
 
-const { el, T, config, isNarrow, voiceService, ttsService, nodeFs, nodePath, markdownRenderer } = ctx;
+const { el, T, config, isNarrow, voiceService, ttsService, nodeFs, nodePath, markdownRenderer, animationsEnabled, perf } = ctx;
 const cmdCfg = config.widgets?.voiceCommand || {};
 const interactiveCfg = cmdCfg.interactive || {};
 if (cmdCfg.enabled === false) return el("div", {});
+const animOrNone = (s) => animationsEnabled ? s : "none";
 
 // ── Global streaming state (survives DataviewJS re-renders) ──
 // When Obsidian re-renders the block, the old widget is destroyed but the
@@ -376,7 +377,7 @@ function updateBatchSubmitState() {
   if (allAnswered) {
     batchSubmitBtn.style.opacity = "1";
     batchSubmitBtn.style.cursor = "pointer";
-    batchSubmitBtn.style.animation = "jarvisSubmitPulse 2s ease-in-out infinite";
+    batchSubmitBtn.style.animation = animOrNone("jarvisSubmitPulse 2s ease-in-out infinite");
   } else {
     batchSubmitBtn.style.opacity = "0.4";
     batchSubmitBtn.style.cursor = "not-allowed";
@@ -929,7 +930,7 @@ function renderQuestionCard(requestId, request, container, scrollParent) {
         radioDot.style.background = T.accent;
         row.style.background = `${T.accent}15`;
         row.style.borderLeft = `3px solid ${T.accent}`;
-        row.style.animation = "jarvisOptionSelected 2s ease-in-out infinite";
+        row.style.animation = animOrNone("jarvisOptionSelected 2s ease-in-out infinite");
         selectedAnswer = optionValue;
         if (isBatchMode) {
           const q = pendingQuestions.get(requestId);
@@ -1059,7 +1060,7 @@ function renderQuestionCard(requestId, request, container, scrollParent) {
         submitEnabled = true;
         submitBtn.style.opacity = "1";
         submitBtn.style.cursor = "pointer";
-        submitBtn.style.animation = "jarvisSubmitPulse 2s ease-in-out infinite";
+        submitBtn.style.animation = animOrNone("jarvisSubmitPulse 2s ease-in-out infinite");
       } else {
         submitEnabled = false;
         submitBtn.style.opacity = "0.4";
@@ -1480,7 +1481,7 @@ function renderAskUserQuestionForm(toolUseId, input, container, scrollParent) {
     if (allAnswered()) {
       submitBtn.style.opacity = "1";
       submitBtn.style.cursor = "pointer";
-      submitBtn.style.animation = "jarvisSubmitPulse 2s ease-in-out infinite";
+      submitBtn.style.animation = animOrNone("jarvisSubmitPulse 2s ease-in-out infinite");
     } else {
       submitBtn.style.opacity = "0.4";
       submitBtn.style.cursor = "not-allowed";
@@ -1984,20 +1985,23 @@ const outerRing = el("div", {
   width: outerSize + "px", height: outerSize + "px",
   borderRadius: "50%",
   border: `2px dashed ${T.accent}33`,
-  animation: "jarvisArcRotate 12s linear infinite",
+  animation: animOrNone("jarvisArcRotate 12s linear infinite"),
   pointerEvents: "none",
+  willChange: animationsEnabled ? "transform" : "auto",
 });
 btnContainer.appendChild(outerRing);
 
-// ── Middle glow ring ──
+// ── Middle glow ring ── (static box-shadow, animated opacity)
 const glowRing = el("div", {
   position: "absolute",
   width: innerSize + "px", height: innerSize + "px",
   borderRadius: "50%",
   border: `1px solid ${T.accent}22`,
   background: `radial-gradient(circle, ${T.accent}08 0%, transparent 70%)`,
-  animation: "jarvisArcPulse 4s ease-in-out infinite",
+  boxShadow: `0 0 30px rgba(0,212,255,0.6), 0 0 60px rgba(0,212,255,0.3), 0 0 90px rgba(0,212,255,0.1)`,
+  animation: animOrNone("jarvisArcPulse 4s ease-in-out infinite"),
   pointerEvents: "none",
+  willChange: animationsEnabled ? "opacity" : "auto",
 });
 btnContainer.appendChild(glowRing);
 
@@ -2022,9 +2026,9 @@ for (let i = 0; i < 3; i++) {
     borderRadius: "50%",
     background: T.accent,
     boxShadow: `0 0 6px ${T.accent}, 0 0 10px ${T.accent}`,
-    animation: `jarvisOrbitDotLarge ${3 + i}s linear infinite ${i * 1.2}s`,
+    animation: animationsEnabled ? `jarvisOrbitDotLarge ${3 + i}s linear infinite ${i * 1.2}s` : "none",
     pointerEvents: "none", opacity: "0.7",
-    willChange: "transform",
+    willChange: animationsEnabled ? "transform" : "auto",
   });
   btnContainer.appendChild(orbit);
 }
@@ -2040,8 +2044,8 @@ const core = el("div", {
   position: "relative", zIndex: "2",
   transition: "border-color 0.4s ease, box-shadow 0.4s ease",
   boxShadow: `0 0 12px ${T.accent}20, inset 0 0 16px rgba(0,0,0,0.6)`,
-  animation: "jarvisBreathing 3s ease-in-out infinite",
-  willChange: "transform",
+  animation: animOrNone("jarvisBreathing 3s ease-in-out infinite"),
+  willChange: animationsEnabled ? "transform" : "auto",
 });
 btnContainer.appendChild(core);
 
@@ -2421,7 +2425,7 @@ terminalHeader.appendChild(statusBadge);
 function updateBadgeState(state) {
   if (state === "running") {
     badgeDot.style.background = T.green;
-    badgeDot.style.animation = "jarvisPulse 2s ease-in-out infinite";
+    badgeDot.style.animation = animOrNone("jarvisPulse 2s ease-in-out infinite");
     badgeLabel.textContent = "jarvis";
     statusBadge.style.color = T.green;
   } else if (state === "success") {
@@ -2491,15 +2495,31 @@ muteBtn.addEventListener("mouseleave", () => {
 
 // Speaking pulse indicator — check every 500ms
 if (ttsEnabled) {
-  const speakPulseCheck = setInterval(() => {
+  let speakPulseId = setInterval(() => {
     if (!ttsService) return;
     if (ttsService.isSpeaking && !ttsService.isMuted) {
-      muteBtn.style.animation = "jarvisPulse 2s ease-in-out infinite";
+      muteBtn.style.animation = animOrNone("jarvisPulse 2s ease-in-out infinite");
     } else if (muteBtn.style.animation) {
       muteBtn.style.animation = "";
     }
   }, 500);
-  ctx.intervals.push(speakPulseCheck);
+  ctx.intervals.push(speakPulseId);
+
+  // Register with pausable system
+  ctx.registerPausable(
+    () => {
+      speakPulseId = setInterval(() => {
+        if (!ttsService) return;
+        if (ttsService.isSpeaking && !ttsService.isMuted) {
+          muteBtn.style.animation = animOrNone("jarvisPulse 2s ease-in-out infinite");
+        } else if (muteBtn.style.animation) {
+          muteBtn.style.animation = "";
+        }
+      }, 500);
+      ctx.intervals.push(speakPulseId);
+    },
+    () => { clearInterval(speakPulseId); }
+  );
 }
 
 // Copy button [Copy]
@@ -2756,10 +2776,10 @@ function setUIState(newState) {
     timerEl.style.display = "none";
     core.style.borderColor = T.accent + "44";
     core.style.boxShadow = `0 0 12px ${T.accent}20, inset 0 0 16px rgba(0,0,0,0.6)`;
-    core.style.animation = "jarvisBreathing 3s ease-in-out infinite";
-    outerRing.style.animation = "jarvisArcRotate 12s linear infinite";
+    core.style.animation = animOrNone("jarvisBreathing 3s ease-in-out infinite");
+    outerRing.style.animation = animOrNone("jarvisArcRotate 12s linear infinite");
     outerRing.style.borderColor = T.accent + "33";
-    glowRing.style.animation = "jarvisArcPulse 4s ease-in-out infinite";
+    glowRing.style.animation = animOrNone("jarvisArcPulse 4s ease-in-out infinite");
     btnContainer.style.animation = "none";
     statusText.textContent = currentSessionId ? "Speak your next message..." : "Tap to speak to JARVIS";
     statusText.style.color = currentSessionId ? T.accent : T.textMuted;
@@ -2773,14 +2793,14 @@ function setUIState(newState) {
     timerEl.textContent = "00:00";
     core.style.borderColor = T.accent + "aa";
     core.style.boxShadow = `0 0 20px ${T.accent}50, 0 0 40px ${T.accent}20, inset 0 0 16px rgba(0,0,0,0.6)`;
-    core.style.animation = "jarvisBreathing 3s ease-in-out infinite";
-    outerRing.style.animation = "jarvisArcRotate 3s linear infinite";
+    core.style.animation = animOrNone("jarvisBreathing 3s ease-in-out infinite");
+    outerRing.style.animation = animOrNone("jarvisArcRotate 3s linear infinite");
     outerRing.style.borderColor = T.accent + "66";
-    glowRing.style.animation = "jarvisRecordPulse 1.5s ease-in-out infinite";
+    glowRing.style.animation = animOrNone("jarvisRecordPulse 1.5s ease-in-out infinite");
     // Zoom wave on entire button — synced at 3s with core breathing
     btnContainer.style.setProperty("--jarvis-zoom-min", zoomMin);
     btnContainer.style.setProperty("--jarvis-zoom-max", zoomMax);
-    btnContainer.style.animation = "jarvisRecordZoom 3s ease-in-out infinite";
+    btnContainer.style.animation = animOrNone("jarvisRecordZoom 3s ease-in-out infinite");
     statusText.textContent = "Recording \u2014 Tap to Send";
     statusText.style.color = T.accent;
     previewEl.style.display = "none";
@@ -2795,10 +2815,10 @@ function setUIState(newState) {
     timerEl.style.display = "none";
     core.style.borderColor = T.accent + "66";
     core.style.boxShadow = `0 0 16px ${T.accent}30, inset 0 0 16px rgba(0,0,0,0.6)`;
-    core.style.animation = "jarvisBreathing 2s ease-in-out infinite";
-    outerRing.style.animation = "jarvisArcRotate 6s linear infinite";
+    core.style.animation = animOrNone("jarvisBreathing 2s ease-in-out infinite");
+    outerRing.style.animation = animOrNone("jarvisArcRotate 6s linear infinite");
     outerRing.style.borderColor = T.accent + "44";
-    glowRing.style.animation = "jarvisArcPulse 2s ease-in-out infinite";
+    glowRing.style.animation = animOrNone("jarvisArcPulse 2s ease-in-out infinite");
     btnContainer.style.animation = "none";
     statusText.textContent = "Processing Voice...";
     statusText.style.color = T.purple;
@@ -2813,7 +2833,7 @@ function setUIState(newState) {
     core.style.borderColor = T.green + "66";
     core.style.boxShadow = `0 0 24px ${T.green}40, 0 0 48px ${T.green}15, inset 0 0 16px rgba(0,0,0,0.6)`;
     core.style.animation = "none";
-    outerRing.style.animation = "jarvisArcRotate 2s linear infinite";
+    outerRing.style.animation = animOrNone("jarvisArcRotate 2s linear infinite");
     outerRing.style.borderColor = T.green + "44";
     glowRing.style.animation = "none";
     glowRing.style.boxShadow = `0 0 30px ${T.green}30`;
@@ -2827,14 +2847,14 @@ function setUIState(newState) {
     stateIcon.style.display = "block";
     stateIcon.style.color = T.green;
     stateIcon.style.fontSize = isNarrow ? "20px" : "24px";
-    stateIcon.style.animation = "jarvisPulse 2s ease-in-out infinite";
+    stateIcon.style.animation = animOrNone("jarvisPulse 2s ease-in-out infinite");
     timerEl.style.display = "none";
     core.style.borderColor = T.green + "44";
     core.style.boxShadow = `0 0 16px ${T.green}30, inset 0 0 16px rgba(0,0,0,0.6)`;
-    core.style.animation = "jarvisBreathing 3s ease-in-out infinite";
-    outerRing.style.animation = "jarvisArcRotate 4s linear infinite";
+    core.style.animation = animOrNone("jarvisBreathing 3s ease-in-out infinite");
+    outerRing.style.animation = animOrNone("jarvisArcRotate 4s linear infinite");
     outerRing.style.borderColor = T.green + "44";
-    glowRing.style.animation = "jarvisArcPulse 3s ease-in-out infinite";
+    glowRing.style.animation = animOrNone("jarvisArcPulse 3s ease-in-out infinite");
     btnContainer.style.animation = "none";
     statusText.textContent = "JARVIS is responding...";
     statusText.style.color = T.green;
@@ -2847,10 +2867,10 @@ function setUIState(newState) {
     timerEl.style.display = "none";
     core.style.borderColor = T.accent + "44";
     core.style.boxShadow = `0 0 12px ${T.accent}20, inset 0 0 16px rgba(0,0,0,0.6)`;
-    core.style.animation = "jarvisBreathing 3s ease-in-out infinite";
-    outerRing.style.animation = "jarvisArcRotate 12s linear infinite";
+    core.style.animation = animOrNone("jarvisBreathing 3s ease-in-out infinite");
+    outerRing.style.animation = animOrNone("jarvisArcRotate 12s linear infinite");
     outerRing.style.borderColor = T.accent + "33";
-    glowRing.style.animation = "jarvisArcPulse 4s ease-in-out infinite";
+    glowRing.style.animation = animOrNone("jarvisArcPulse 4s ease-in-out infinite");
     btnContainer.style.animation = "none";
     statusText.textContent = currentSessionId ? "Tap to continue the conversation" : "Tap to speak to JARVIS";
     statusText.style.color = currentSessionId ? T.accent : T.textMuted;
@@ -2863,10 +2883,10 @@ function setUIState(newState) {
     timerEl.style.display = "none";
     core.style.borderColor = T.red + "44";
     core.style.boxShadow = `0 0 16px ${T.red}20, inset 0 0 16px rgba(0,0,0,0.6)`;
-    core.style.animation = "jarvisBreathing 3s ease-in-out infinite";
-    outerRing.style.animation = "jarvisArcRotate 12s linear infinite";
+    core.style.animation = animOrNone("jarvisBreathing 3s ease-in-out infinite");
+    outerRing.style.animation = animOrNone("jarvisArcRotate 12s linear infinite");
     outerRing.style.borderColor = T.red + "33";
-    glowRing.style.animation = "jarvisArcPulse 4s ease-in-out infinite";
+    glowRing.style.animation = animOrNone("jarvisArcPulse 4s ease-in-out infinite");
     btnContainer.style.animation = "none";
     statusText.textContent = "Error \u2014 Tap to retry";
     statusText.style.color = T.red;
@@ -4014,8 +4034,9 @@ if (isRemoteMode && networkClient) {
   });
 }
 
-// ── Safety-net cleanup ──
-const cleanupId = setInterval(() => {
+// ── Safety-net cleanup (configurable interval) ──
+const cleanupMs = perf?.cleanupIntervalMs || 5000;
+let cleanupId = setInterval(() => {
   if (!document.contains(section)) {
     stopRecordTimer();
     if (isRemoteMode) {
@@ -4043,8 +4064,21 @@ const cleanupId = setInterval(() => {
     document.removeEventListener("keydown", handleKeyDown);
     clearInterval(cleanupId);
   }
-}, 1000);
+}, cleanupMs);
 ctx.intervals.push(cleanupId);
+
+// Register cleanup interval with pausable system
+ctx.registerPausable(
+  () => {
+    cleanupId = setInterval(() => {
+      if (!document.contains(section)) {
+        clearInterval(cleanupId);
+      }
+    }, cleanupMs);
+    ctx.intervals.push(cleanupId);
+  },
+  () => { clearInterval(cleanupId); }
+);
 
 // ── Reconnect to active streaming if re-rendered ──
 (function reconnectIfStreaming() {

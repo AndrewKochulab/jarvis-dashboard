@@ -1,9 +1,10 @@
 // Header Widget
 // Title, status, clock, typing subtitle, decorative line
-// Returns: HTMLElement (header section)
+// Returns: HTMLElement
 
-const { el, T, config, isNarrow } = ctx;
+const { el, T, config, isNarrow, animationsEnabled, perf } = ctx;
 const dashCfg = config.dashboard || {};
+const clockMs = perf?.clockIntervalMs || 1000;
 
 const section = el("div", {
   position: "relative",
@@ -26,7 +27,8 @@ const statusDot = el("span", {
   borderRadius: "50%",
   background: T.green,
   display: "inline-block",
-  animation: "jarvisPulse 1.5s ease-in-out infinite",
+  animation: animationsEnabled ? "jarvisPulse 1.5s ease-in-out infinite" : "none",
+  willChange: animationsEnabled ? "transform, opacity" : "auto",
 });
 statusRow.appendChild(statusDot);
 
@@ -46,10 +48,14 @@ const title = el("h1", {
   letterSpacing: isNarrow ? "8px" : "16px",
   margin: "0 0 8px 0",
   color: T.accent,
-  animation: "jarvisGlow 3s ease-in-out infinite",
+  animation: animationsEnabled ? "jarvisGlow 3s ease-in-out infinite" : "none",
   fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
   textAlign: "center",
+  willChange: animationsEnabled ? "text-shadow" : "auto",
 }, dashCfg.title || "J.A.R.V.I.S.");
+if (!animationsEnabled) {
+  title.style.textShadow = "0 0 10px rgba(0,212,255,0.4), 0 0 30px rgba(0,212,255,0.2)";
+}
 section.appendChild(title);
 
 // Typing subtitle
@@ -86,7 +92,9 @@ subtitleOuter.appendChild(subtitleInner);
 
 setTimeout(() => {
   subtitleInner.style.borderRightColor = T.accent;
-  subtitleInner.style.animation = "jarvisTyping 2.5s steps(40, end) forwards, jarvisCursorBlink 0.8s step-end infinite 2.5s";
+  subtitleInner.style.animation = animationsEnabled
+    ? "jarvisTyping 2.5s steps(40, end) forwards, jarvisCursorBlink 0.8s step-end infinite 2.5s"
+    : "jarvisTyping 2.5s steps(40, end) forwards";
 }, 100);
 
 // Date & Clock row
@@ -129,15 +137,33 @@ const clockEl = el("span", {
 });
 clockRow.appendChild(clockEl);
 
+const showSeconds = clockMs < 60000;
+
 function updateClock() {
   const n = new Date();
   const h = String(n.getHours()).padStart(2, "0");
   const m = String(n.getMinutes()).padStart(2, "0");
-  const s = String(n.getSeconds()).padStart(2, "0");
-  clockEl.textContent = `${h}:${m}:${s}`;
+  if (showSeconds) {
+    const s = String(n.getSeconds()).padStart(2, "0");
+    clockEl.textContent = `${h}:${m}:${s}`;
+  } else {
+    clockEl.textContent = `${h}:${m}`;
+  }
 }
 updateClock();
-ctx.intervals.push(setInterval(updateClock, 1000));
+
+let clockId = setInterval(updateClock, clockMs);
+ctx.intervals.push(clockId);
+
+// Register with pausable system — stop clock when tab is hidden
+ctx.registerPausable(
+  () => {
+    updateClock(); // immediate catch-up on resume
+    clockId = setInterval(updateClock, clockMs);
+    ctx.intervals.push(clockId);
+  },
+  () => { clearInterval(clockId); }
+);
 
 // Decorative line
 const headerLine = el("div", {

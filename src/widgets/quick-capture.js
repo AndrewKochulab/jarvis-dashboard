@@ -217,14 +217,29 @@ if (voiceService.isAvailable) {
     }
   });
 
-  // Safety-net cleanup
-  const cleanupId = setInterval(() => {
+  // Safety-net cleanup (configurable interval)
+  const cleanupMs = ctx.perf?.cleanupIntervalMs || 5000;
+  let cleanupId = setInterval(() => {
     if (!document.contains(section)) {
       voiceService.cleanup();
       clearInterval(cleanupId);
     }
-  }, 1000);
+  }, cleanupMs);
   ctx.intervals.push(cleanupId);
+
+  // Register with pausable system
+  ctx.registerPausable(
+    () => {
+      cleanupId = setInterval(() => {
+        if (!document.contains(section)) {
+          voiceService.cleanup();
+          clearInterval(cleanupId);
+        }
+      }, cleanupMs);
+      ctx.intervals.push(cleanupId);
+    },
+    () => { clearInterval(cleanupId); }
+  );
 }
 
 btn.addEventListener("click", () => {

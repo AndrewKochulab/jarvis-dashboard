@@ -66,6 +66,10 @@ agents.forEach(a => {
   (a.skills || []).forEach(s => skillToAgent.set(s, a.name));
 });
 
+// ── Performance config shortcuts ──
+const perf = config.performance || {};
+const animationsEnabled = perf.animationsEnabled !== false;
+
 // ── Build shared context ──
 const ctx = {
   el, T, config, container, dv,
@@ -79,10 +83,20 @@ const ctx = {
   intervals: [],
   cleanups: [],
   _paused: false,
+  _srcDir: srcDir,
+  // Performance
+  perf,
+  animationsEnabled,
+  // Pausable registry for centralized visibility pause/resume
+  _pausables: [],
+  registerPausable(startFn, stopFn) {
+    ctx._pausables.push({ start: startFn, stop: stopFn });
+  },
 };
 
 // ── Load services ──
 ctx.sessionParser = loadModule("services/session-parser.js")(ctx);
+ctx.cleanups.push(() => { if (ctx.sessionParser.cleanup) ctx.sessionParser.cleanup(); });
 ctx.statsEngine = loadModule("services/stats-engine.js")(ctx);
 ctx.timerService = loadModule("services/timer-service.js")(ctx);
 ctx.voiceService = loadModule("services/voice-service.js")(ctx);
@@ -133,7 +147,9 @@ if (config.dashboard?.showScanLine !== false) {
     left: "0", width: "100%", height: "6%",
     background: "linear-gradient(180deg, transparent, rgba(0,212,255,0.04), transparent)",
     pointerEvents: "none", zIndex: "1",
-    animation: "jarvisScanLine 8s linear infinite",
+    animation: animationsEnabled ? "jarvisScanLine 8s linear infinite" : "none",
+    willChange: animationsEnabled ? "top" : "auto",
+    contain: "layout style",
   }));
 }
 
@@ -153,6 +169,12 @@ const WIDGET_MAP = {
   "jarvis-voice-command": "widgets/jarvis-voice-command.js",
   "footer": "widgets/footer.js",
 };
+
+// ── Widgets that benefit from content-visibility: auto (below the fold) ──
+const DEFERRED_WIDGETS = new Set([
+  "activity-analytics", "recent-activity", "footer",
+  "system-diagnostics", "mission-control",
+]);
 
 // ── Render layout ──
 const layout = config.layout || [
@@ -179,11 +201,18 @@ for (const entry of layout) {
       position: "relative",
       zIndex: "2",
       marginBottom: isNarrow ? "24px" : "40px",
+      contain: "layout style",
     });
     for (const widgetType of entry.widgets) {
       if (WIDGET_MAP[widgetType]) {
         const widget = loadModule(WIDGET_MAP[widgetType])(ctx);
-        if (widget.style) widget.style.marginBottom = "0";
+        if (widget.style) {
+          widget.style.marginBottom = "0";
+          widget.style.contain = "layout style";
+          if (DEFERRED_WIDGETS.has(widgetType)) {
+            widget.style.contentVisibility = "auto";
+          }
+        }
         row.appendChild(widget);
       }
     }
@@ -191,20 +220,50 @@ for (const entry of layout) {
     gridRefs.push({ el: row, columns: entry.columns || 2 });
   } else if (WIDGET_MAP[entry.type]) {
     const widget = loadModule(WIDGET_MAP[entry.type])(ctx);
+    if (widget.style) {
+      widget.style.contain = "layout style";
+      if (DEFERRED_WIDGETS.has(entry.type)) {
+        widget.style.contentVisibility = "auto";
+      }
+    }
     wrapper.appendChild(widget);
   }
 }
 
 // ── Trigger async stats ──
-setTimeout(() => {
-  try {
-    const stats = ctx.statsEngine.computeStats();
-    ctx.onStatsReady.forEach(cb => cb(stats));
-  } catch {}
-}, 100);
+if (ctx.sessionParser.hasWorker) {
+  // Worker mode: request stats from background thread
+  ctx._onWorkerStats = (stats) => {
+    ctx.onStatsReady.forEach(cb => { try { cb(stats); } catch {} });
+    ctx._onWorkerStats = null; // one-shot
+  };
+  ctx.sessionParser.requestWorkerStats();
+} else {
+  // Fallback: compute on main thread after initial render
+  setTimeout(() => {
+    try {
+      const stats = ctx.statsEngine.computeStats();
+      ctx.onStatsReady.forEach(cb => cb(stats));
+    } catch {}
+  }, 100);
+}
 
-// ── Pause all work when dashboard is not visible ──
-const _visibilityHandler = () => { ctx._paused = document.hidden; };
+// ── Centralized pause/resume when dashboard is not visible ──
+const _visibilityHandler = () => {
+  const hidden = document.hidden;
+  ctx._paused = hidden;
+  if (hidden) {
+    // Pause all CSS animations via class toggle (no DOM iteration)
+    wrapper.classList.add("jarvis-bg-paused");
+    // Stop all registered interval-based work
+    ctx._pausables.forEach(p => { try { p.stop(); } catch(e) {} });
+  } else {
+    // Resume all CSS animations
+    wrapper.classList.remove("jarvis-bg-paused");
+    // Restart all registered interval-based work
+    ctx._pausables.forEach(p => { try { p.start(); } catch(e) {} });
+  }
+};
 document.addEventListener("visibilitychange", _visibilityHandler);
 ctx.cleanups.push(() => document.removeEventListener("visibilitychange", _visibilityHandler));
 

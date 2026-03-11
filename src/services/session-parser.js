@@ -1,21 +1,53 @@
 // Session Parser Service
 // Reads Claude Code JSONL transcripts, detects active sessions & subagents
-// Returns: { getAllSessions, isClaudeProcessRunning }
+// Uses worker_threads to offload heavy I/O from the main thread
+// Returns: { getAllSessions, isClaudeProcessRunning, getTrackedProjects, cleanup }
 
 const { nodeFs, nodePath, config, agentNames, skillToAgent } = ctx;
 
+// ── Worker setup ──
+let worker = null;
+let _cachedSessions = [];
+let _cachedProcessRunning = false;
+
+try {
+  const { Worker } = require("worker_threads");
+  const workerPath = nodePath.join(ctx._srcDir, "services", "session-worker.js");
+  if (nodeFs.existsSync(workerPath)) {
+    worker = new Worker(workerPath);
+    worker.on("message", (msg) => {
+      if (msg.type === "sessions") {
+        _cachedSessions = msg.sessions;
+        _cachedProcessRunning = msg.processRunning;
+      }
+      if (msg.type === "stats" && ctx._onWorkerStats) {
+        ctx._onWorkerStats(msg.stats);
+      }
+    });
+    worker.on("error", () => { worker = null; });
+  }
+} catch { worker = null; }
+
+// ── Fallback caches (used when worker is not available) ──
 const agentCache = new Map();
 const subagentDescCache = new Map();
-const sessionFileCache = new Map(); // filePath -> { mtimeMs, result }
-const subagentDirCache = new Map(); // subagentsDir -> { mtimeMs, files }
+const sessionFileCache = new Map();
+const subDescFileCache = new Map();
 let discoveredProjects = null;
 let discoveredAt = 0;
 const SCAN_CACHE_MS = config.performance?.projectDiscoveryCacheMs || 300000;
 
-// Cache for isClaudeProcessRunning() to avoid spawning pgrep every cycle
 let _processCache = null;
 let _processCacheAt = 0;
+let _processCheckInFlight = false;
 const PROCESS_CACHE_MS = config.performance?.processCheckCacheMs || 10000;
+
+// Seed cache synchronously once at init so the first call returns real status
+try {
+  const initOut = require("child_process").execSync("pgrep -fa 'claude' 2>/dev/null || true", { encoding: "utf8", timeout: 3000 });
+  _processCache = initOut.split("\n").some(line => line.includes("/claude") && !line.includes("pgrep"));
+  _processCacheAt = Date.now();
+} catch { _processCache = false; _processCacheAt = Date.now(); }
 
 function expandHome(p) {
   if (p.startsWith("~")) {
@@ -51,23 +83,40 @@ function getTrackedProjects() {
   return discoveredProjects;
 }
 
+// ── Async process check (non-blocking) ──
 function isClaudeProcessRunning() {
   if (_processCache !== null && Date.now() - _processCacheAt < PROCESS_CACHE_MS) {
     return _processCache;
   }
-  try {
-    const out = require("child_process").execSync(
-      "pgrep -fa 'claude' 2>/dev/null || true",
-      { encoding: "utf8", timeout: 3000 }
-    );
-    _processCache = out.split("\n").some(line =>
-      line.includes("/claude") && !line.includes("pgrep")
-    );
-  } catch { _processCache = false; }
-  _processCacheAt = Date.now();
-  return _processCache;
+  // Trigger async update if not already in flight
+  if (!_processCheckInFlight) {
+    _processCheckInFlight = true;
+    try {
+      require("child_process").exec(
+        "pgrep -fa 'claude' 2>/dev/null || true",
+        { encoding: "utf8", timeout: 3000 },
+        (err, stdout) => {
+          _processCheckInFlight = false;
+          if (!err && stdout) {
+            _processCache = stdout.split("\n").some(line =>
+              line.includes("/claude") && !line.includes("pgrep")
+            );
+          } else {
+            _processCache = false;
+          }
+          _processCacheAt = Date.now();
+        }
+      );
+    } catch {
+      _processCheckInFlight = false;
+      _processCache = false;
+      _processCacheAt = Date.now();
+    }
+  }
+  return _processCache || false;
 }
 
+// ── Fallback: main-thread session parsing (used if worker unavailable) ──
 function parseSessionFile(filePath, ageSeconds) {
   try {
     const stat = nodeFs.statSync(filePath);
@@ -159,6 +208,9 @@ function parseSessionFile(filePath, ageSeconds) {
 function getSubagentDescriptions(mainSessionPath) {
   try {
     const stat = nodeFs.statSync(mainSessionPath);
+    const cached = subDescFileCache.get(mainSessionPath);
+    if (cached && cached.mtimeMs === stat.mtimeMs) return;
+
     const readSize = Math.min(stat.size, 65536);
     const buf = Buffer.alloc(readSize);
     const fd = nodeFs.openSync(mainSessionPath, "r");
@@ -209,6 +261,8 @@ function getSubagentDescriptions(mainSessionPath) {
       nodeFs.closeSync(fd2);
       scanLines(headBuf.toString("utf8").split("\n").filter(Boolean));
     }
+
+    subDescFileCache.set(mainSessionPath, { mtimeMs: stat.mtimeMs });
   } catch {}
 }
 
@@ -235,7 +289,6 @@ function getSubagentsForSession(projPath, sessionFileName, processRunning) {
 
       const fp = nodePath.join(subagentsDir, file.name);
 
-      // Use mtime-based cache for subagent files too
       const cached = sessionFileCache.get(fp);
       let info;
       if (cached && cached.mtimeMs === file.mtime) {
@@ -267,7 +320,30 @@ function getSubagentsForSession(projPath, sessionFileName, processRunning) {
   } catch { return []; }
 }
 
+// ── Main API ──
+function requestWorkerRefresh() {
+  if (!worker) return;
+  const rootPath = expandHome(config.projects.rootPath);
+  const trackedProjects = getTrackedProjects();
+  // Convert Set/Map to serializable formats for worker
+  worker.postMessage({
+    type: "parseSessions",
+    projects: trackedProjects,
+    rootPath,
+    agentNames: Array.from(agentNames),
+    skillToAgent: Object.fromEntries(skillToAgent),
+    processCheckCacheMs: PROCESS_CACHE_MS,
+  });
+}
+
 function getAllSessions() {
+  // Worker mode: return cached results, request async refresh
+  if (worker) {
+    requestWorkerRefresh();
+    return _cachedSessions;
+  }
+
+  // Fallback: main-thread parsing
   try {
     const processRunning = isClaudeProcessRunning();
     const sessions = [];
@@ -295,7 +371,6 @@ function getAllSessions() {
         if (age > 120) continue;
         const fp = nodePath.join(projPath, file.name);
 
-        // Use mtime-based cache to avoid re-reading unchanged files
         const cached = sessionFileCache.get(fp);
         let info;
         if (cached && cached.mtimeMs === file.mtime) {
@@ -325,4 +400,16 @@ function getAllSessions() {
   } catch { return []; }
 }
 
-return { getAllSessions, isClaudeProcessRunning, getTrackedProjects };
+function requestWorkerStats() {
+  if (!worker) return;
+  worker.postMessage({ type: "computeStats", config });
+}
+
+function cleanup() {
+  if (worker) {
+    try { worker.terminate(); } catch {}
+    worker = null;
+  }
+}
+
+return { getAllSessions, isClaudeProcessRunning, getTrackedProjects, requestWorkerStats, cleanup, get hasWorker() { return !!worker; } };

@@ -2,7 +2,7 @@
 // Robot avatars, skills pills, status indicators
 // Returns: HTMLElement
 
-const { el, T, config, isNarrow, isMedium, isWide, agents, agentCardRefs, CARD_PAD, FONT_SM } = ctx;
+const { el, T, config, isNarrow, isMedium, isWide, agents, agentCardRefs, CARD_PAD, FONT_SM, animationsEnabled } = ctx;
 const editorApp = config.widgets?.communicationLink?.editorApp || "Cursor";
 
 const section = el("div", {
@@ -45,8 +45,9 @@ section.appendChild(grid);
 function buildRobot(agentName, color) {
   const robotWrap = el("div", {
     width: "56px", height: "64px", position: "relative",
-    animation: "jarvisBreathing 2.5s ease-in-out infinite", flexShrink: "0",
-    willChange: "transform",
+    animation: animationsEnabled ? "jarvisBreathing 2.5s ease-in-out infinite" : "none",
+    flexShrink: "0",
+    willChange: animationsEnabled ? "transform" : "auto",
   });
 
   // Antenna
@@ -76,6 +77,7 @@ function buildRobot(agentName, color) {
   robotWrap.appendChild(head);
 
   // Eyes - style based on name hash
+  // GPU optimization: use opacity animation instead of box-shadow animation
   const eyeStyle = nameHash % 3;
   if (eyeStyle === 0) {
     // Visor style
@@ -92,13 +94,16 @@ function buildRobot(agentName, color) {
       }));
     }
   } else if (eyeStyle === 1) {
-    // Lens style
+    // Lens style — static box-shadow, animated opacity
     const lens = el("div", {
       position: "absolute", top: "8px", left: "50%", transform: "translateX(-50%)",
       width: "18px", height: "18px", borderRadius: "50%",
       border: `2px solid ${color}`,
       background: "radial-gradient(circle, " + color + "44, transparent)",
-      animation: "jarvisEyeGlow 2s ease-in-out infinite", color: color,
+      boxShadow: `0 0 6px ${color}, 0 0 12px ${color}, 0 0 20px ${color}`,
+      animation: animationsEnabled ? "jarvisEyeGlow 2s ease-in-out infinite" : "none",
+      willChange: animationsEnabled ? "opacity" : "auto",
+      color: color,
     });
     head.appendChild(lens);
     lens.appendChild(el("div", {
@@ -107,18 +112,22 @@ function buildRobot(agentName, color) {
       background: color, boxShadow: `0 0 4px ${color}`,
     }));
   } else {
-    // Dual dot eyes
+    // Dual dot eyes — static box-shadow, animated opacity
     head.appendChild(el("div", {
       position: "absolute", top: "10px", left: "10px",
       width: "8px", height: "8px", borderRadius: "50%", background: color,
       boxShadow: `0 0 6px ${color}, 0 0 12px ${color}66`,
-      animation: "jarvisEyeGlow 2.5s ease-in-out infinite", color: color,
+      animation: animationsEnabled ? "jarvisEyeGlow 2.5s ease-in-out infinite" : "none",
+      willChange: animationsEnabled ? "opacity" : "auto",
+      color: color,
     }));
     head.appendChild(el("div", {
       position: "absolute", top: "10px", right: "10px",
       width: "8px", height: "8px", borderRadius: "50%", background: color,
       boxShadow: `0 0 6px ${color}, 0 0 12px ${color}66`,
-      animation: "jarvisEyeGlow 2.5s ease-in-out infinite 0.3s", color: color,
+      animation: animationsEnabled ? "jarvisEyeGlow 2.5s ease-in-out infinite 0.3s" : "none",
+      willChange: animationsEnabled ? "opacity" : "auto",
+      color: color,
     }));
   }
 
@@ -160,6 +169,7 @@ agents.forEach((agent, idx) => {
     animation: `jarvisCardFadeIn 0.5s ease-out ${idx * 0.15}s both`,
     transition: "box-shadow 0.3s ease, border-color 0.3s ease",
     cursor: "pointer",
+    contain: "layout style",
   });
   card.title = "Click to open agent config";
   grid.appendChild(card);
@@ -203,14 +213,15 @@ agents.forEach((agent, idx) => {
   const robot = buildRobot(agent.name, agentColor);
   robotOuter.appendChild(robot);
 
-  // Glow ring (hidden, shown when active)
+  // Glow ring (hidden, shown when active) — uses opacity animation
   const glowRing = el("div", {
     position: "absolute", top: "6px", left: "50%", transform: "translateX(-50%)",
     width: "46px", height: "46px", borderRadius: "50%",
     background: `radial-gradient(circle, ${agentColor}20 0%, transparent 70%)`,
     boxShadow: `0 0 12px ${agentColor}44, 0 0 24px ${agentColor}22`,
-    animation: "jarvisActiveRing 2s ease-in-out infinite",
+    animation: animationsEnabled ? "jarvisActiveRing 2s ease-in-out infinite" : "none",
     display: "none", pointerEvents: "none", zIndex: "0",
+    willChange: animationsEnabled ? "transform, opacity" : "auto",
   });
   robotOuter.appendChild(glowRing);
 
@@ -220,9 +231,9 @@ agents.forEach((agent, idx) => {
     width: "4px", height: "4px", marginTop: "-2px", marginLeft: "-2px",
     borderRadius: "50%", background: agentColor,
     boxShadow: `0 0 6px ${agentColor}, 0 0 10px ${agentColor}`,
-    animation: "jarvisOrbitDot 3s linear infinite",
+    animation: animationsEnabled ? "jarvisOrbitDot 3s linear infinite" : "none",
     display: "none", pointerEvents: "none", zIndex: "3",
-    willChange: "transform",
+    willChange: animationsEnabled ? "transform" : "auto",
   });
   robotOuter.appendChild(orbitDot);
 
@@ -268,7 +279,8 @@ agents.forEach((agent, idx) => {
   const sDot = el("span", {
     width: "6px", height: "6px", borderRadius: "50%",
     background: T.green, display: "inline-block",
-    animation: "jarvisPulse 1.5s ease-in-out infinite",
+    animation: animationsEnabled ? "jarvisPulse 1.5s ease-in-out infinite" : "none",
+    willChange: animationsEnabled ? "transform, opacity" : "auto",
   });
   statusBadge.appendChild(sDot);
 

@@ -2,7 +2,7 @@
 // Pomodoro timer with circular progress, presets, state persistence
 // Returns: HTMLElement
 
-const { el, T, config, isNarrow, timerService } = ctx;
+const { el, T, config, isNarrow, timerService, animationsEnabled } = ctx;
 const timerCfg = config.widgets?.focusTimer || {};
 
 const section = el("div", {
@@ -256,7 +256,7 @@ function startTimer() {
   ctx.intervals.push(timerInterval);
   updateDisplay();
   updateButtons();
-  circle.style.animation = "jarvisTimerPulse 2s ease-in-out infinite";
+  if (animationsEnabled) circle.style.animation = "jarvisTimerPulse 2s ease-in-out infinite";
 }
 
 function pauseTimer() {
@@ -314,10 +314,28 @@ if (ts.state === "running" && ts.startedAt) {
   } else {
     timerInterval = setInterval(updateDisplay, 1000);
     ctx.intervals.push(timerInterval);
-    circle.style.animation = "jarvisTimerPulse 2s ease-in-out infinite";
+    if (animationsEnabled) circle.style.animation = "jarvisTimerPulse 2s ease-in-out infinite";
   }
 }
 updateDisplay();
 updateButtons();
+
+// Register with pausable system — stop display updates when tab is hidden
+// Timer continues tracking via ts.startedAt; updateDisplay recalculates on resume
+ctx.registerPausable(
+  () => {
+    if (ts.state === "running") {
+      updateDisplay(); // immediate catch-up
+      timerInterval = setInterval(updateDisplay, 1000);
+      ctx.intervals.push(timerInterval);
+    }
+  },
+  () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+);
 
 return section;
