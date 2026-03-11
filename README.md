@@ -732,7 +732,7 @@ The Quick Capture widget supports voice-to-text dictation using [whisper.cpp](ht
 
    This installs the `whisper-cli` binary and the default `ggml-base.en.bin` model.
 
-2. **Download a different model** (optional — for other languages or better accuracy):
+2. **Download model**:
 
    ```bash
    # Available models: tiny, base, small, medium, large-v3
@@ -794,10 +794,22 @@ The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper]
 
 1. **Install Piper** via pip:
 
+   ```sh
+   pipx --global install piper-tts --include-deps
+   ```
+
+   or
+   
    ```bash
    pip3 install piper-tts
    ```
 
+   By default piper-tts does not include one library. If you get an error "ModuleNotFoundError: No module named 'pathvalidate'", run following:
+
+   ```sh
+   pipx inject piper-tts pathvalidate
+   ```
+   
    Verify the installation:
 
    ```bash
@@ -806,7 +818,7 @@ The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper]
 
    > **Note:** Find the installed binary path with `which piper`. On macOS with Homebrew Python, it's typically `~/Library/Python/3.x/bin/piper`. Use this path for `tts.piper.binaryPath` in config.
 
-2. **Download a voice model** — each model requires two files (`.onnx` + `.onnx.json`):
+3. **Download a voice model** — each model requires two files (`.onnx` + `.onnx.json`):
 
    ```bash
    mkdir -p ~/.config/piper
@@ -818,7 +830,7 @@ The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper]
      "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/joe/medium/en_US-joe-medium.onnx.json"
    ```
 
-3. **Test the voice** directly from the terminal:
+4. **Test the voice** directly from the terminal:
 
    ```bash
    echo "Hello, I am JARVIS. How can I help you today?" | \
@@ -826,7 +838,7 @@ The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper]
      afplay /tmp/test.wav
    ```
 
-4. **Configure** in `config.json`:
+5. **Configure** in `config.json`:
 
    ```json
    "tts": {
