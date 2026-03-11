@@ -730,7 +730,7 @@ The Quick Capture widget supports voice-to-text dictation using [whisper.cpp](ht
    brew install whisper-cpp
    ```
 
-   This installs the `whisper-cli` binary and the default `ggml-base.en.bin` model.
+   This installs the `whisper-cli` binary; you will download a model in the next step.
 
 2. **Download model**:
 
@@ -804,7 +804,7 @@ The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper]
    pip3 install piper-tts
    ```
 
-   By default piper-tts does not include one library. If you get an error "ModuleNotFoundError: No module named 'pathvalidate'", run following:
+   By default, `piper-tts` does not include the `pathvalidate` library. If you see the error `ModuleNotFoundError: No module named 'pathvalidate'`, run the following:
 
    ```sh
    pipx inject piper-tts pathvalidate
