@@ -2,11 +2,14 @@
 // Arc reactor-style circular button — record voice, transcribe, stream Claude response in-panel
 // Returns: HTMLElement
 
-const { el, T, config, isNarrow, voiceService, ttsService, nodeFs, nodePath, markdownRenderer, animationsEnabled, perf } = ctx;
+const { el, T, config, isNarrow, voiceService, ttsService, nodeFs, nodePath, markdownRenderer, animationsEnabled, perf, sessionManager } = ctx;
 const cmdCfg = config.widgets?.voiceCommand || {};
 const interactiveCfg = cmdCfg.interactive || {};
 if (cmdCfg.enabled === false) return el("div", {});
 const animOrNone = (s) => animationsEnabled ? s : "none";
+
+// ── Session manager integration ──
+let activeJarvisSessionId = null; // current Jarvis session ID (from session-manager)
 
 // ── Global streaming state (survives DataviewJS re-renders) ──
 // When Obsidian re-renders the block, the old widget is destroyed but the
@@ -26,8 +29,26 @@ const zoomMax = cmdCfg.zoomMax ?? 1.08;
 
 // ── Terminal config ──
 const termCfg = cmdCfg.terminal || {};
-const termProjectPath = termCfg.projectPath || null;
 const showCommand = termCfg.showCommand !== false;
+const termTitle = termCfg.title || "JARVIS OUTPUT";
+const showProjectTag = termCfg.showProjectTag !== false;
+const showStatusBadge = termCfg.showStatusBadge !== false;
+const showCopyButton = termCfg.showCopyButton !== false;
+const showCompletionLabel = termCfg.showCompletionLabel !== false;
+const completionLabel = termCfg.completionLabel || "Process complete";
+const showStatusLabels = termCfg.showStatusLabels !== false;
+const showToolUseLabels = termCfg.showToolUseLabels !== false;
+
+// ── Dynamic project path (replaces hardcoded termProjectPath) ──
+function getActiveProjectPath() {
+  const session = sessionManager.getActiveSession();
+  if (session) {
+    return sessionManager.getProjectPath(session.projectIndex);
+  }
+  // Fallback: use first tracked project or null
+  const defaultIdx = config.projects?.defaultProjectIndex || 0;
+  return sessionManager.getProjectPath(defaultIdx);
+}
 
 // ── Personality config ──
 const personalityCfg = cmdCfg.personality || {};
@@ -105,7 +126,7 @@ function killClaudeProcess() {
 
 // ── settings.local.json permission management ──
 function getSettingsPath() {
-  const cwd = expandPath(termProjectPath) || app.vault.adapter.basePath;
+  const cwd = expandPath(getActiveProjectPath()) || app.vault.adapter.basePath;
   return nodePath.join(cwd, ".claude", "settings.local.json");
 }
 
@@ -169,7 +190,7 @@ function spawnRetryProcess() {
   st.lineBuf = "";
 
   const { spawn } = require("child_process");
-  const cwd = expandPath(termProjectPath) || app.vault.adapter.basePath;
+  const cwd = expandPath(getActiveProjectPath()) || app.vault.adapter.basePath;
   const childEnv = Object.assign({}, process.env, { FORCE_COLOR: "0" });
   delete childEnv.CLAUDECODE;
   delete childEnv.CLAUDE_CODE_ENTRYPOINT;
@@ -219,7 +240,7 @@ function spawnAskUserResumeProcess(answerText) {
   st.uiState = "streaming";
 
   const { spawn } = require("child_process");
-  const cwd = expandPath(termProjectPath) || app.vault.adapter.basePath;
+  const cwd = expandPath(getActiveProjectPath()) || app.vault.adapter.basePath;
   const childEnv = Object.assign({}, process.env, { FORCE_COLOR: "0" });
   delete childEnv.CLAUDECODE;
   delete childEnv.CLAUDE_CODE_ENTRYPOINT;
@@ -249,7 +270,7 @@ function closeStdinIfDone(st) {
 
 // ── Session utilities ──
 function getProjectSessionDir() {
-  const cwd = expandPath(termProjectPath) || app.vault.adapter.basePath;
+  const cwd = expandPath(getActiveProjectPath()) || app.vault.adapter.basePath;
   return nodePath.join(require("os").homedir(), ".claude", "projects",
     cwd.replace(/[^a-zA-Z0-9-]/g, "-"));
 }
@@ -410,7 +431,7 @@ function handleBatchSubmit() {
       answer: q.answer, requestId, timestamp: Date.now(),
     });
   });
-  writeVoiceState();
+  syncToManager();
   // Disable all cards + submit button
   if (batchSubmitContainer) {
     batchSubmitContainer.style.opacity = "0.5";
@@ -588,7 +609,7 @@ function renderPermissionCard(requestId, request, container, scrollParent) {
       role: "permission", tool: toolName, input,
       decision: "allow", requestId, timestamp: Date.now(),
     });
-    writeVoiceState();
+    syncToManager();
   });
 
   alwaysBtn.addEventListener("click", () => {
@@ -608,7 +629,7 @@ function renderPermissionCard(requestId, request, container, scrollParent) {
       role: "permission", tool: toolName, input,
       decision: "allowAlways", requestId, timestamp: Date.now(),
     });
-    writeVoiceState();
+    syncToManager();
   });
 
   denyBtn.addEventListener("click", () => {
@@ -627,7 +648,7 @@ function renderPermissionCard(requestId, request, container, scrollParent) {
       role: "permission", tool: toolName, input,
       decision: "deny", requestId, timestamp: Date.now(),
     });
-    writeVoiceState();
+    syncToManager();
   });
 
   btnRow.appendChild(allowBtn);
@@ -768,7 +789,7 @@ function renderSettingsPermissionCard(permItem, container, scrollParent) {
       role: "permission", tool: toolName, input,
       decision: "allow", timestamp: Date.now(),
     });
-    writeVoiceState();
+    syncToManager();
     // If all pending resolved, spawn retry process with approved tools in --allowedTools
     const allResolved = st.pendingPermissions.every(p => p.status !== "pending");
     if (allResolved) {
@@ -792,7 +813,7 @@ function renderSettingsPermissionCard(permItem, container, scrollParent) {
       role: "permission", tool: toolName, input,
       decision: "allowAlways", timestamp: Date.now(),
     });
-    writeVoiceState();
+    syncToManager();
     const allResolved = st.pendingPermissions.every(p => p.status !== "pending");
     if (allResolved) {
       spawnRetryProcess();
@@ -809,7 +830,7 @@ function renderSettingsPermissionCard(permItem, container, scrollParent) {
       role: "permission", tool: toolName, input,
       decision: "deny", timestamp: Date.now(),
     });
-    writeVoiceState();
+    syncToManager();
     const allResolved = st.pendingPermissions.every(p => p.status !== "pending");
     if (allResolved) {
       // Clear retry allowlist — all denied, nothing to retry
@@ -1087,7 +1108,7 @@ function renderQuestionCard(requestId, request, container, scrollParent) {
         role: "question", message: request.message, options: request.options,
         answer: selectedAnswer, requestId, timestamp: Date.now(),
       });
-      writeVoiceState();
+      syncToManager();
     });
 
     submitBtn.addEventListener("mouseenter", () => {
@@ -1366,6 +1387,7 @@ function renderDisplayOnlyQuestionCard(input, st) {
 //   label → text: text starts on a new line (textWrap div)
 // opts.replay — if true, skip dedup tracking and history recording (used during restore)
 function renderStatusLabel(type, text, container, scrollParent, opts) {
+  if (!showStatusLabels) return;
   const st = window.__jarvisStreamState;
   const isReplay = opts && opts.replay;
   const typeConfig = {
@@ -1548,7 +1570,7 @@ function renderAskUserQuestionForm(toolUseId, input, container, scrollParent) {
       message: questions.map(q => q.question || q.header || "").join("; "),
       options: [], answer: responseText, requestId: null, timestamp: Date.now(),
     });
-    writeVoiceState();
+    syncToManager();
   }
 
   // Render each question section
@@ -1922,33 +1944,41 @@ if (isRemoteMode && remoteTtsMode === "server") {
   audioPlayer = new AudioPlayer();
 }
 
-// ── Voice state persistence ──
-function readVoiceState() {
-  try {
-    const p = nodePath.join(getProjectSessionDir(), "jarvis-voice-state.json");
-    return JSON.parse(nodeFs.readFileSync(p, "utf8"));
-  } catch { return null; }
+// ── Session-manager sync (replaces readVoiceState / writeVoiceState) ──
+function syncFromManager() {
+  const session = sessionManager.getActiveSession();
+  if (session) {
+    activeJarvisSessionId = session.id;
+    currentSessionId = session.sessionId;
+    conversationHistory = session.conversationHistory;
+    fullBuffer = session.fullBuffer;
+  } else {
+    activeJarvisSessionId = null;
+    currentSessionId = null;
+    conversationHistory = [];
+    fullBuffer = "";
+  }
 }
 
-function writeVoiceState() {
-  try {
-    const dir = getProjectSessionDir();
-    if (!nodeFs.existsSync(dir)) nodeFs.mkdirSync(dir, { recursive: true });
-    nodeFs.writeFileSync(nodePath.join(dir, "jarvis-voice-state.json"), JSON.stringify({
-      currentSessionId,
-      conversationHistory,
-      fullBuffer,
-    }, null, 2));
-  } catch {}
+function syncToManager() {
+  if (!activeJarvisSessionId) return;
+  const session = sessionManager.getSession(activeJarvisSessionId);
+  if (session) {
+    session.sessionId = currentSessionId;
+    session.conversationHistory = conversationHistory;
+    session.fullBuffer = fullBuffer;
+    session.lastActiveAt = Date.now();
+    sessionManager.saveImmediate();
+  }
 }
 
-// ── Restore persisted session state ──
-const _saved = readVoiceState();
-if (_saved) {
-  currentSessionId = _saved.currentSessionId || null;
-  conversationHistory = _saved.conversationHistory || [];
-  fullBuffer = _saved.fullBuffer || "";
+// ── Restore persisted session state from session-manager ──
+// On first load, ensure an active session exists
+if (!sessionManager.getActiveSession()) {
+  const defaultIdx = config.projects?.defaultProjectIndex || 0;
+  sessionManager.createSession(defaultIdx);
 }
+syncFromManager();
 
 // ── State ──
 let uiState = "idle"; // idle | recording | transcribing | launching | streaming | done | error
@@ -2108,59 +2138,53 @@ const previewEl = el("div", {
 section.appendChild(previewEl);
 
 // ═══════════════════════════════════════════
-// ── Session indicator bar (hidden by default) ──
+// ── Project Selector (replaces old session bar) ──
 // ═══════════════════════════════════════════
 
-const sessionDot = el("span", {
+let projectDropdownOpen = false;
+let projectDropdownEl = null;
+
+function getActiveProjectIndex() {
+  const session = sessionManager.getActiveSession();
+  return session ? session.projectIndex : (config.projects?.defaultProjectIndex || 0);
+}
+
+const projectSelectorDot = el("span", {
   display: "inline-block",
-  width: "6px", height: "6px",
+  width: "8px", height: "8px",
   borderRadius: "50%",
-  background: T.green,
+  flexShrink: "0",
+  transition: "background 0.2s ease",
+});
+
+const projectSelectorIcon = el("span", {
+  fontSize: "14px",
+  lineHeight: "1",
   flexShrink: "0",
 });
 
-const sessionLabel = el("span", {
-  fontSize: "10px", fontWeight: "700",
-  letterSpacing: "1.5px", textTransform: "uppercase",
-  color: T.textMuted,
+const projectSelectorLabel = el("span", {
+  fontSize: "11px", fontWeight: "600",
+  letterSpacing: "0.5px",
+  color: T.text,
   fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
-}, "SESSION");
-
-const sessionIdLabel = el("span", {
-  fontSize: "10px", fontWeight: "600",
-  letterSpacing: "1px",
-  color: T.accent,
-  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+  flex: "1",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
 });
 
-const resumeBtn = el("span", {
-  fontSize: "10px", fontWeight: "600",
-  letterSpacing: "1px",
-  color: T.green,
-  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
-  padding: "3px 10px",
-  borderRadius: "6px",
-  border: `1px solid ${T.green}44`,
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-}, "Resume");
-
-const newSessionBtn = el("span", {
-  fontSize: "10px", fontWeight: "600",
-  letterSpacing: "1px",
+const projectSelectorChevron = el("span", {
+  fontSize: "14px",
   color: T.textMuted,
-  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
-  padding: "3px 10px",
-  borderRadius: "6px",
-  border: `1px solid ${T.panelBorder}`,
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-}, "New Session");
+  transition: "transform 0.15s ease, color 0.15s ease",
+  flexShrink: "0",
+}, "\u25BE");
 
-const sessionBar = el("div", {
-  display: "none",
+const projectSelector = el("div", {
+  display: "flex",
   alignItems: "center",
-  gap: "6px",
+  gap: "8px",
   padding: "8px 14px",
   marginTop: "12px",
   background: T.panelBg,
@@ -2168,14 +2192,161 @@ const sessionBar = el("div", {
   borderRadius: "8px",
   maxWidth: isNarrow ? "100%" : "600px",
   width: "100%",
+  cursor: "pointer",
+  transition: "border-color 0.2s ease",
+  position: "relative",
+  userSelect: "none",
 });
-sessionBar.appendChild(sessionDot);
-sessionBar.appendChild(sessionLabel);
-sessionBar.appendChild(sessionIdLabel);
-sessionBar.appendChild(el("div", { flex: "1" }));
-sessionBar.appendChild(resumeBtn);
-sessionBar.appendChild(newSessionBtn);
-section.appendChild(sessionBar);
+projectSelector.appendChild(projectSelectorDot);
+projectSelector.appendChild(projectSelectorIcon);
+projectSelector.appendChild(projectSelectorLabel);
+projectSelector.appendChild(projectSelectorChevron);
+section.appendChild(projectSelector);
+
+function shouldShowProjectSelector() {
+  const all = sessionManager.getAllSessions();
+  return all.length === 0 || all.every(s => s.conversationHistory.length === 0 && !s.sessionId);
+}
+
+function updateProjectSelector() {
+  projectSelector.style.display = shouldShowProjectSelector() ? "flex" : "none";
+  const idx = getActiveProjectIndex();
+  const color = sessionManager.getProjectColor(idx);
+  const icon = sessionManager.getProjectIcon(idx);
+  const proj = sessionManager.getProject(idx);
+  const label = proj?.label || `Project ${idx}`;
+  projectSelectorDot.style.background = color;
+  projectSelectorIcon.textContent = icon;
+  projectSelectorLabel.textContent = label;
+  projectSelectorLabel.style.color = color;
+}
+updateProjectSelector();
+
+projectSelector.addEventListener("mouseenter", () => {
+  if (uiState !== "streaming" && uiState !== "launching") {
+    projectSelector.style.borderColor = T.accent + "44";
+  }
+});
+projectSelector.addEventListener("mouseleave", () => {
+  if (!projectDropdownOpen) projectSelector.style.borderColor = T.panelBorder;
+});
+
+function closeProjectDropdown() {
+  if (projectDropdownEl && projectDropdownEl.parentNode) {
+    projectDropdownEl.parentNode.removeChild(projectDropdownEl);
+  }
+  projectDropdownEl = null;
+  projectDropdownOpen = false;
+  projectSelectorChevron.style.transform = "";
+  projectSelector.style.borderColor = T.panelBorder;
+}
+
+function openProjectDropdown() {
+  if (projectDropdownOpen) { closeProjectDropdown(); return; }
+  if (uiState === "streaming" || uiState === "launching") return;
+  cancelTabEdit();
+
+  projectDropdownOpen = true;
+  projectSelectorChevron.style.transform = "rotate(180deg)";
+  projectSelector.style.borderColor = T.accent + "44";
+
+  const rect = projectSelector.getBoundingClientRect();
+  const dropdown = el("div", {
+    position: "fixed",
+    top: (rect.bottom + 4) + "px",
+    left: rect.left + "px",
+    width: rect.width + "px",
+    background: T.panelBg,
+    border: `1px solid ${T.accent}33`,
+    borderRadius: "8px",
+    overflow: "hidden",
+    zIndex: "10000",
+    maxHeight: "240px",
+    overflowY: "auto",
+    boxShadow: `0 8px 24px rgba(0,0,0,0.4), 0 0 1px ${T.accent}22`,
+  });
+  dropdown.classList.add("jarvis-project-dropdown");
+
+  const currentIdx = getActiveProjectIndex();
+  const tracked = sessionManager.tracked;
+
+  for (let i = 0; i < tracked.length; i++) {
+    const proj = tracked[i];
+    const color = sessionManager.getProjectColor(i);
+    const icon = sessionManager.getProjectIcon(i);
+    const isActive = i === currentIdx;
+
+    const item = el("div", {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      transition: "background 0.1s ease",
+      background: isActive ? `${color}12` : "transparent",
+    });
+
+    item.appendChild(el("span", {
+      display: "inline-block",
+      width: "6px", height: "6px",
+      borderRadius: "50%",
+      background: color,
+      flexShrink: "0",
+    }));
+
+    item.appendChild(el("span", {
+      fontSize: "13px", lineHeight: "1", flexShrink: "0",
+    }, icon));
+
+    item.appendChild(el("span", {
+      fontSize: "11px", fontWeight: "600",
+      letterSpacing: "0.5px",
+      color: isActive ? color : T.text,
+      fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+      flex: "1",
+    }, proj.label));
+
+    if (isActive) {
+      item.appendChild(el("span", {
+        fontSize: "12px", color, flexShrink: "0",
+      }, "\u2713"));
+    }
+
+    const projIdx = i;
+    item.addEventListener("mouseenter", () => {
+      if (!isActive) item.style.background = `${color}08`;
+    });
+    item.addEventListener("mouseleave", () => {
+      item.style.background = isActive ? `${color}12` : "transparent";
+    });
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeProjectDropdown();
+      if (projIdx !== currentIdx) {
+        createNewSession(projIdx);
+      }
+    });
+
+    dropdown.appendChild(item);
+  }
+
+  projectDropdownEl = dropdown;
+  document.body.appendChild(dropdown);
+}
+
+projectSelector.addEventListener("click", (e) => {
+  e.stopPropagation();
+  openProjectDropdown();
+});
+
+// Click-outside to close dropdown
+function handleClickOutsideDropdown(e) {
+  if (projectDropdownOpen && !projectSelector.contains(e.target) && !(projectDropdownEl && projectDropdownEl.contains(e.target))) {
+    closeProjectDropdown();
+  }
+}
+document.addEventListener("click", handleClickOutsideDropdown);
+ctx.cleanups.push(() => { document.removeEventListener("click", handleClickOutsideDropdown); closeProjectDropdown(); });
 
 // ═══════════════════════════════════════════
 // ── Text input row (both modes) ──
@@ -2388,10 +2559,46 @@ terminalHeader.appendChild(el("span", {
   textTransform: "uppercase",
   color: T.textMuted,
   fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
-}, "JARVIS OUTPUT"));
+}, termTitle));
 
 // Spacer
 terminalHeader.appendChild(el("div", { flex: "1" }));
+
+// Project tag [📓 MyLifeVault]
+const projectTag = el("span", {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "4px",
+  fontSize: "10px",
+  fontWeight: "600",
+  letterSpacing: "0.5px",
+  fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+  padding: "2px 8px",
+  borderRadius: "6px",
+  marginRight: "8px",
+  transition: "all 0.2s ease",
+});
+const projectTagIcon = el("span", { fontSize: "11px", lineHeight: "1" });
+const projectTagLabel = el("span", {});
+projectTag.appendChild(projectTagIcon);
+projectTag.appendChild(projectTagLabel);
+projectTag.style.display = showProjectTag ? "inline-flex" : "none";
+terminalHeader.appendChild(projectTag);
+
+function updateProjectTag() {
+  const idx = getActiveProjectIndex();
+  const color = sessionManager.getProjectColor(idx);
+  const icon = sessionManager.getProjectIcon(idx);
+  const proj = sessionManager.getProject(idx);
+  const label = proj?.label || `Project ${idx}`;
+  projectTagIcon.textContent = icon;
+  projectTagLabel.textContent = label;
+  projectTag.style.color = color;
+  projectTag.style.borderColor = color + "44";
+  projectTag.style.border = `1px solid ${color}44`;
+  projectTag.style.background = color + "12";
+}
+updateProjectTag();
 
 // Status badge [● claude]
 const badgeDot = el("span", {
@@ -2420,6 +2627,7 @@ const statusBadge = el("span", {
 });
 statusBadge.appendChild(badgeDot);
 statusBadge.appendChild(badgeLabel);
+statusBadge.style.display = showStatusBadge ? "inline-flex" : "none";
 terminalHeader.appendChild(statusBadge);
 
 function updateBadgeState(state) {
@@ -2537,6 +2745,7 @@ const copyBtn = el("span", {
   transition: "all 0.2s ease",
 });
 copyBtn.appendChild(copyBtnLabel);
+copyBtn.style.display = showCopyButton ? "inline" : "none";
 terminalHeader.appendChild(copyBtn);
 
 copyBtn.addEventListener("mouseenter", () => {
@@ -2575,6 +2784,309 @@ const terminalOutput = el("div", {
 });
 terminalPanel.appendChild(terminalOutput);
 
+// ═══════════════════════════════════════════
+// ── Session Tab Bar ──
+// ═══════════════════════════════════════════
+
+const tabBar = el("div", { display: "none" });
+tabBar.classList.add("jarvis-tab-bar");
+terminalPanel.appendChild(tabBar);
+
+// ── Editable tab state ──
+let editingTabId = null;
+let editingInput = null;
+
+function cancelTabEdit() {
+  if (editingTabId) {
+    editingTabId = null;
+    editingInput = null;
+    renderTabBar();
+  }
+}
+
+function startTabEdit(sessionId, labelSpan) {
+  if (editingTabId) cancelTabEdit();
+  const sess = sessionManager.getSession(sessionId);
+  if (!sess) return;
+  const color = sess.sessionColor || sess.projectColor || sessionManager.getProjectColor(sess.projectIndex);
+  const icon = sess.projectIcon || sessionManager.getProjectIcon(sess.projectIndex);
+  const currentName = sess.customName || `${icon} ${sess.projectLabel}`;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = currentName;
+  Object.assign(input.style, {
+    font: "10px 'SF Mono', 'Fira Code', 'Consolas', monospace",
+    fontWeight: "600",
+    letterSpacing: "0.5px",
+    background: "transparent",
+    border: "none",
+    borderBottom: `1px solid ${color}`,
+    color: color,
+    outline: "none",
+    padding: "0",
+    width: Math.max(60, Math.min(200, labelSpan.offsetWidth + 10)) + "px",
+    minWidth: "60px",
+    maxWidth: "200px",
+  });
+  labelSpan.textContent = "";
+  labelSpan.appendChild(input);
+  input.focus();
+  input.select();
+  editingTabId = sessionId;
+  editingInput = input;
+
+  function commitEdit() {
+    const val = input.value.trim();
+    sess.customName = val || null;
+    sessionManager.saveImmediate();
+    editingTabId = null;
+    editingInput = null;
+    renderTabBar();
+  }
+  function cancelEdit() {
+    editingTabId = null;
+    editingInput = null;
+    renderTabBar();
+  }
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); commitEdit(); }
+    else if (e.key === "Escape") { e.preventDefault(); cancelEdit(); }
+  });
+  input.addEventListener("blur", cancelEdit);
+}
+
+// ── Drag & drop state ──
+let dragSourceId = null;
+
+function renderTabBar() {
+  const allSessions = sessionManager.getAllSessions();
+  tabBar.innerHTML = "";
+
+  if (allSessions.length === 0) {
+    tabBar.style.display = "none";
+    return;
+  }
+  tabBar.style.display = "flex";
+
+  const activeId = sessionManager.getActiveSessionId();
+
+  for (const sess of allSessions) {
+    const isActive = sess.id === activeId;
+    const color = sess.sessionColor || sess.projectColor || sessionManager.getProjectColor(sess.projectIndex);
+    const icon = sess.projectIcon || sessionManager.getProjectIcon(sess.projectIndex);
+
+    const tab = el("div", {
+      color: isActive ? color : T.textMuted,
+      borderBottomColor: isActive ? color : "transparent",
+      background: isActive ? `${color}08` : "transparent",
+    });
+    tab.classList.add("jarvis-tab");
+
+    // Colored dot
+    tab.appendChild(el("span", {
+      display: "inline-block",
+      width: "5px", height: "5px",
+      borderRadius: "50%",
+      background: color,
+      opacity: isActive ? "1" : "0.6",
+      flexShrink: "0",
+    }));
+
+    // Label
+    const displayText = sess.customName || `${icon} ${sess.projectLabel}`;
+    const labelSpan = el("span", {}, displayText);
+    tab.appendChild(labelSpan);
+
+    // Double-click to edit tab name
+    labelSpan.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      startTabEdit(sess.id, labelSpan);
+    });
+
+    // Notification badge (shown when background stream completes)
+    if (!isActive && sess.status === "done" && sess._notifyBadge) {
+      const badge = el("span", { background: color });
+      badge.classList.add("jarvis-tab-badge");
+      tab.appendChild(badge);
+    }
+
+    // Close button
+    const closeTabBtn = el("span", {
+      color: T.textMuted,
+      cursor: "pointer",
+    }, "\u2715");
+    closeTabBtn.classList.add("jarvis-tab-close");
+    closeTabBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeSession(sess.id);
+    });
+    tab.appendChild(closeTabBtn);
+
+    tab.addEventListener("click", () => {
+      if (!isActive) switchToSession(sess.id);
+    });
+
+    // ── Drag & drop ──
+    tab.draggable = true;
+    tab.dataset.sessionId = sess.id;
+    tab.addEventListener("dragstart", (e) => {
+      dragSourceId = sess.id;
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", sess.id);
+      tab.classList.add("jarvis-dragging");
+    });
+    tab.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (dragSourceId && dragSourceId !== sess.id) {
+        tab.classList.add("jarvis-drag-over");
+      }
+    });
+    tab.addEventListener("dragleave", () => {
+      tab.classList.remove("jarvis-drag-over");
+    });
+    tab.addEventListener("drop", (e) => {
+      e.preventDefault();
+      tab.classList.remove("jarvis-drag-over");
+      const sourceId = e.dataTransfer.getData("text/plain");
+      if (sourceId && sourceId !== sess.id) {
+        const allS = sessionManager.getAllSessions();
+        const targetIdx = allS.findIndex(s => s.id === sess.id);
+        if (targetIdx >= 0) {
+          sessionManager.moveSession(sourceId, targetIdx);
+          renderTabBar();
+        }
+      }
+    });
+    tab.addEventListener("dragend", () => {
+      tab.classList.remove("jarvis-dragging");
+      dragSourceId = null;
+    });
+
+    tabBar.appendChild(tab);
+  }
+
+  // "+" button to add new session
+  const addBtn = el("div", {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "6px 10px",
+    cursor: "pointer",
+    color: T.textMuted,
+    fontSize: "14px",
+    fontWeight: "600",
+    transition: "color 0.15s ease",
+    flexShrink: "0",
+  }, "+");
+  addBtn.addEventListener("mouseenter", () => { addBtn.style.color = T.accent; });
+  addBtn.addEventListener("mouseleave", () => { addBtn.style.color = T.textMuted; });
+  addBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    showTabAddPicker(addBtn);
+  });
+  tabBar.appendChild(addBtn);
+}
+
+// Mini project picker for "+" button
+let tabAddPickerEl = null;
+
+function showTabAddPicker(anchorEl) {
+  cancelTabEdit();
+  if (tabAddPickerEl) { hideTabAddPicker(); return; }
+
+  const picker = el("div", {
+    position: "fixed",
+    background: T.panelBg,
+    border: `1px solid ${T.accent}33`,
+    borderRadius: "8px",
+    overflow: "hidden",
+    zIndex: "10000",
+    maxHeight: "200px",
+    overflowY: "auto",
+    boxShadow: `0 8px 24px rgba(0,0,0,0.4)`,
+    minWidth: "180px",
+  });
+  picker.classList.add("jarvis-project-dropdown");
+
+  const tracked = sessionManager.tracked;
+  for (let i = 0; i < tracked.length; i++) {
+    const proj = tracked[i];
+    const color = sessionManager.getProjectColor(i);
+    const icon = sessionManager.getProjectIcon(i);
+
+    const item = el("div", {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "7px 12px",
+      cursor: "pointer",
+      transition: "background 0.1s ease",
+    });
+
+    item.appendChild(el("span", {
+      display: "inline-block",
+      width: "5px", height: "5px",
+      borderRadius: "50%",
+      background: color,
+      flexShrink: "0",
+    }));
+
+    item.appendChild(el("span", {
+      fontSize: "12px", lineHeight: "1", flexShrink: "0",
+    }, icon));
+
+    item.appendChild(el("span", {
+      fontSize: "10px", fontWeight: "600",
+      letterSpacing: "0.5px",
+      color: T.text,
+      fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+    }, proj.label));
+
+    const projIdx = i;
+    item.addEventListener("mouseenter", () => { item.style.background = `${color}08`; });
+    item.addEventListener("mouseleave", () => { item.style.background = "transparent"; });
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      hideTabAddPicker();
+      createNewSession(projIdx);
+    });
+
+    picker.appendChild(item);
+  }
+
+  tabAddPickerEl = picker;
+  document.body.appendChild(picker);
+
+  // Position below the anchor
+  const rect = anchorEl.getBoundingClientRect();
+  picker.style.top = (rect.bottom + 4) + "px";
+  picker.style.left = Math.max(4, rect.left - 80) + "px";
+}
+
+function hideTabAddPicker() {
+  if (tabAddPickerEl && tabAddPickerEl.parentNode) {
+    tabAddPickerEl.parentNode.removeChild(tabAddPickerEl);
+  }
+  tabAddPickerEl = null;
+}
+
+function handleClickOutsideTabPicker(e) {
+  if (tabAddPickerEl && !tabAddPickerEl.contains(e.target)) {
+    hideTabAddPicker();
+  }
+}
+document.addEventListener("click", handleClickOutsideTabPicker);
+ctx.cleanups.push(() => { document.removeEventListener("click", handleClickOutsideTabPicker); hideTabAddPicker(); });
+
+// Close all dropdowns on scroll (capture phase catches inner scrollable containers)
+function closeAllDropdowns() { closeProjectDropdown(); hideTabAddPicker(); }
+document.addEventListener("scroll", closeAllDropdowns, { passive: true, capture: true });
+ctx.cleanups.push(() => document.removeEventListener("scroll", closeAllDropdowns, { capture: true }));
+
+// Initial render
+renderTabBar();
+
 // ── Panel animation functions ──
 function openTerminalPanel() {
   terminalPanel.style.display = "block";
@@ -2605,15 +3117,10 @@ function appendTurnSeparator() {
 }
 
 function updateSessionIndicator() {
-  if (currentSessionId) {
-    sessionBar.style.display = "flex";
-    sessionIdLabel.textContent = ` #${currentSessionId.slice(0, 7)}`;
-    sessionDot.style.animation = (uiState === "streaming" || uiState === "launching")
-      ? "jarvisPulse 2s ease-in-out infinite" : "none";
-    sessionDot.style.background = T.green;
-  } else {
-    sessionBar.style.display = "none";
-  }
+  // Update project selector + tag + tab bar on session change
+  updateProjectSelector();
+  updateProjectTag();
+  renderTabBar();
 }
 
 function clearSession() {
@@ -2631,37 +3138,179 @@ function clearSession() {
   fullBuffer = "";
   terminalOutput.innerHTML = "";
   updateBadgeState("idle");
+  syncToManager();
   updateSessionIndicator();
-  writeVoiceState();
   if (terminalPanel.style.display !== "none") closeTerminalPanel();
   setUIState("idle");
 }
 
-// ── Session bar event listeners ──
-resumeBtn.addEventListener("mouseenter", () => {
-  resumeBtn.style.background = `${T.green}15`;
-  resumeBtn.style.borderColor = `${T.green}77`;
-});
-resumeBtn.addEventListener("mouseleave", () => {
-  resumeBtn.style.background = "transparent";
-  resumeBtn.style.borderColor = `${T.green}44`;
-});
-resumeBtn.addEventListener("click", () => {
-  if (uiState === "streaming" || uiState === "recording" || uiState === "transcribing") return;
-  if (terminalPanel.style.display === "none") openTerminalPanel();
-  statusText.textContent = "Speak your next message...";
-  statusText.style.color = T.accent;
-});
+// ── Multi-session management ──
+function switchToSession(jarvisSessionId) {
+  if (jarvisSessionId === activeJarvisSessionId) return;
+  cancelTabEdit();
+  // Save current state
+  syncToManager();
+  // Update active session status
+  const current = sessionManager.getActiveSession();
+  if (current && current.status === "streaming") {
+    // Keep streaming in background — don't kill process
+    current._notifyBadge = false;
+  }
+  // Switch
+  sessionManager.setActiveSession(jarvisSessionId);
+  syncFromManager();
+  // Re-render terminal with new session's history
+  replayTerminalForActiveSession();
+  updateSessionIndicator();
+  updateProjectSelector();
+  updateProjectTag();
+  // Update UI state based on the switched-to session's status
+  const newSession = sessionManager.getActiveSession();
+  if (newSession) {
+    newSession._notifyBadge = false; // Clear notification on view
+    if (newSession.status === "streaming") {
+      setUIState("streaming");
+    } else if (newSession.conversationHistory.length > 0) {
+      setUIState("done");
+    } else {
+      setUIState("idle");
+    }
+  }
+}
 
-newSessionBtn.addEventListener("mouseenter", () => {
-  newSessionBtn.style.background = `${T.textMuted}15`;
-  newSessionBtn.style.borderColor = `${T.textMuted}44`;
-});
-newSessionBtn.addEventListener("mouseleave", () => {
-  newSessionBtn.style.background = "transparent";
-  newSessionBtn.style.borderColor = T.panelBorder;
-});
-newSessionBtn.addEventListener("click", () => clearSession());
+function createNewSession(projectIndex) {
+  // Save current state
+  syncToManager();
+  cancelTabEdit();
+  // Create new session
+  const session = sessionManager.createSession(projectIndex);
+  activeJarvisSessionId = session.id;
+  currentSessionId = null;
+  conversationHistory = [];
+  fullBuffer = "";
+  preSpawnJsonlSet = null;
+  // Clear terminal output but keep panel open (tab bar stays visible)
+  terminalOutput.innerHTML = "";
+  updateBadgeState("idle");
+  updateSessionIndicator();
+  updateProjectSelector();
+  updateProjectTag();
+  setUIState("idle");
+}
+
+function closeSession(jarvisSessionId) {
+  cancelTabEdit();
+  const session = sessionManager.getSession(jarvisSessionId);
+  if (!session) return;
+  // Kill process if this session is actively streaming
+  if (session.status === "streaming" && jarvisSessionId === activeJarvisSessionId) {
+    if (isRemoteMode) {
+      networkClient?.sendCancel();
+    } else {
+      killClaudeProcess();
+    }
+  }
+  const wasActive = jarvisSessionId === activeJarvisSessionId;
+  sessionManager.removeSession(jarvisSessionId);
+  if (wasActive) {
+    // Switch to next available session or create default
+    const remaining = sessionManager.getAllSessions();
+    if (remaining.length > 0) {
+      syncFromManager();
+      replayTerminalForActiveSession();
+    } else {
+      const defaultIdx = config.projects?.defaultProjectIndex || 0;
+      const newSession = sessionManager.createSession(defaultIdx);
+      activeJarvisSessionId = newSession.id;
+      currentSessionId = null;
+      conversationHistory = [];
+      fullBuffer = "";
+      terminalOutput.innerHTML = "";
+      if (terminalPanel.style.display !== "none") closeTerminalPanel();
+    }
+    setUIState("idle");
+    updateBadgeState("idle");
+  }
+  updateSessionIndicator();
+  updateProjectSelector();
+  updateProjectTag();
+}
+
+function replayTerminalForActiveSession() {
+  terminalOutput.innerHTML = "";
+  if (!currentSessionId && conversationHistory.length === 0) return;
+
+  let _replayThinkingShown = false;
+  for (let i = 0; i < conversationHistory.length; i++) {
+    const turn = conversationHistory[i];
+    if (turn.role === "user") {
+      _replayThinkingShown = false;
+      if (i > 0) appendTurnSeparator();
+      const echoLine = el("div", { marginBottom: "4px", wordBreak: "break-word", whiteSpace: "pre-wrap" });
+      echoLine.appendChild(el("span", { color: T.green }, "$ "));
+      if (showCommand) {
+        const isResTurn = i > 0;
+        const cmdText = isResTurn
+          ? `claude --resume ${currentSessionId?.slice(0, 7) || "???"}\u2026 ${turn.text}`
+          : `claude --print ${turn.text}`;
+        echoLine.appendChild(el("span", { color: T.textMuted }, cmdText));
+      } else {
+        echoLine.appendChild(el("span", { color: T.textMuted }, turn.text));
+      }
+      const userText = turn.text;
+      addMessageCopyIcon(echoLine, () => userText);
+      terminalOutput.appendChild(echoLine);
+      terminalOutput.appendChild(el("div", {
+        height: "1px", background: `${T.accent}33`, margin: "8px 0",
+      }));
+    } else if (turn.role === "tool") {
+      if (!showToolUseLabels) continue;
+      const skipTools = { Skill: 1, Agent: 1, WebSearch: 1, WebFetch: 1 };
+      if (skipTools[turn.text]) continue;
+      const infoLine = el("div", {
+        color: T.gold, fontSize: "10px", opacity: "0.7",
+        marginTop: "4px", letterSpacing: "0.5px",
+      }, `\u26A1 ${turn.text}`);
+      terminalOutput.appendChild(infoLine);
+    } else if (turn.role === "permission") {
+      renderCompletedInteractionCard({
+        type: "permission", tool: turn.tool, input: turn.input,
+        decision: turn.decision, requestId: turn.requestId,
+      }, terminalOutput, terminalOutput);
+    } else if (turn.role === "question") {
+      renderCompletedInteractionCard({
+        type: "question", message: turn.message, options: turn.options,
+        answer: turn.answer, requestId: turn.requestId,
+      }, terminalOutput, terminalOutput);
+    } else if (turn.role === "status") {
+      if (turn.type === "thinking") {
+        if (!_replayThinkingShown) {
+          _replayThinkingShown = true;
+          renderStatusLabel(turn.type, turn.label, terminalOutput, terminalOutput, { replay: true });
+        }
+        continue;
+      }
+      renderStatusLabel(turn.type, turn.label, terminalOutput, terminalOutput, { replay: true });
+    } else if (turn.role === "assistant") {
+      const assistantDiv = el("div", { color: T.text, position: "relative" });
+      assistantDiv.appendChild(markdownRenderer.renderMarkdown(turn.text));
+      const assistantText = turn.text;
+      addMessageCopyIcon(assistantDiv, () => assistantText);
+      terminalOutput.appendChild(assistantDiv);
+      if (showCompletionLabel) {
+        terminalOutput.appendChild(el("div", {
+          color: T.accent, opacity: "0.6", marginTop: "8px",
+          fontSize: isNarrow ? "10px" : "11px", letterSpacing: "1px",
+        }, `[${completionLabel}]`));
+      }
+    }
+  }
+
+  if (conversationHistory.length > 0) {
+    openTerminalPanel();
+    updateBadgeState("success");
+  }
+}
 
 closeBtn.addEventListener("click", () => {
   if (isRemoteMode) {
@@ -2690,73 +3339,8 @@ if (!available) return section;
 // ── Restore persisted session UI ──
 // ═══════════════════════════════════════════
 
-if (currentSessionId && conversationHistory.length > 0) {
-  let _replayThinkingShown = false;
-  for (let i = 0; i < conversationHistory.length; i++) {
-    const turn = conversationHistory[i];
-    if (turn.role === "user") {
-      _replayThinkingShown = false; // Reset so each message exchange gets its own THINKING label
-      if (i > 0) appendTurnSeparator();
-      const echoLine = el("div", { marginBottom: "4px", wordBreak: "break-word", whiteSpace: "pre-wrap" });
-      echoLine.appendChild(el("span", { color: T.green }, "$ "));
-      if (showCommand) {
-        const isResTurn = i > 0;
-        const cmdText = isResTurn
-          ? `claude --resume ${currentSessionId.slice(0, 7)}\u2026 ${turn.text}`
-          : `claude --print ${turn.text}`;
-        echoLine.appendChild(el("span", { color: T.textMuted }, cmdText));
-      } else {
-        echoLine.appendChild(el("span", { color: T.textMuted }, turn.text));
-      }
-      const userText = turn.text;
-      addMessageCopyIcon(echoLine, () => userText);
-      terminalOutput.appendChild(echoLine);
-      terminalOutput.appendChild(el("div", {
-        height: "1px", background: `${T.accent}33`, margin: "8px 0",
-      }));
-    } else if (turn.role === "tool") {
-      // Skip notable tools entirely — they have richer role:"status" entries with detail text
-      const skipTools = { Skill: 1, Agent: 1, WebSearch: 1, WebFetch: 1 };
-      if (skipTools[turn.text]) continue;
-      const infoLine = el("div", {
-        color: T.gold, fontSize: "10px", opacity: "0.7",
-        marginTop: "4px", letterSpacing: "0.5px",
-      }, `\u26A1 ${turn.text}`);
-      terminalOutput.appendChild(infoLine);
-    } else if (turn.role === "permission") {
-      renderCompletedInteractionCard({
-        type: "permission", tool: turn.tool, input: turn.input,
-        decision: turn.decision, requestId: turn.requestId,
-      }, terminalOutput, terminalOutput);
-    } else if (turn.role === "question") {
-      renderCompletedInteractionCard({
-        type: "question", message: turn.message, options: turn.options,
-        answer: turn.answer, requestId: turn.requestId,
-      }, terminalOutput, terminalOutput);
-    } else if (turn.role === "status") {
-      // Only show first THINKING label during replay; show all other status types
-      if (turn.type === "thinking") {
-        if (!_replayThinkingShown) {
-          _replayThinkingShown = true;
-          renderStatusLabel(turn.type, turn.label, terminalOutput, terminalOutput, { replay: true });
-        }
-        continue;
-      }
-      renderStatusLabel(turn.type, turn.label, terminalOutput, terminalOutput, { replay: true });
-    } else if (turn.role === "assistant") {
-      const assistantDiv = el("div", { color: T.text, position: "relative" });
-      assistantDiv.appendChild(markdownRenderer.renderMarkdown(turn.text));
-      const assistantText = turn.text;
-      addMessageCopyIcon(assistantDiv, () => assistantText);
-      terminalOutput.appendChild(assistantDiv);
-      terminalOutput.appendChild(el("div", {
-        color: T.accent, opacity: "0.6", marginTop: "8px",
-        fontSize: isNarrow ? "10px" : "11px", letterSpacing: "1px",
-      }, "[Process complete]"));
-    }
-  }
-  openTerminalPanel();
-  updateBadgeState("success");
+if (conversationHistory.length > 0) {
+  replayTerminalForActiveSession();
   updateSessionIndicator();
   setUIState("done");
 }
@@ -2781,8 +3365,9 @@ function setUIState(newState) {
     outerRing.style.borderColor = T.accent + "33";
     glowRing.style.animation = animOrNone("jarvisArcPulse 4s ease-in-out infinite");
     btnContainer.style.animation = "none";
-    statusText.textContent = currentSessionId ? "Speak your next message..." : "Tap to speak to JARVIS";
-    statusText.style.color = currentSessionId ? T.accent : T.textMuted;
+    const hasHistory = currentSessionId || conversationHistory.length > 0;
+    statusText.textContent = hasHistory ? "Speak your next message..." : "Tap to speak to JARVIS";
+    statusText.style.color = hasHistory ? T.accent : T.textMuted;
     previewEl.style.display = "none";
     previewEl.style.opacity = "0";
 
@@ -2872,8 +3457,9 @@ function setUIState(newState) {
     outerRing.style.borderColor = T.accent + "33";
     glowRing.style.animation = animOrNone("jarvisArcPulse 4s ease-in-out infinite");
     btnContainer.style.animation = "none";
-    statusText.textContent = currentSessionId ? "Tap to continue the conversation" : "Tap to speak to JARVIS";
-    statusText.style.color = currentSessionId ? T.accent : T.textMuted;
+    const hasHistory = currentSessionId || conversationHistory.length > 0;
+    statusText.textContent = hasHistory ? "Tap to continue the conversation" : "Tap to speak to JARVIS";
+    statusText.style.color = hasHistory ? T.accent : T.textMuted;
     updateBadgeState("success");
 
   } else if (newState === "error") {
@@ -2893,11 +3479,14 @@ function setUIState(newState) {
     updateBadgeState("error");
   }
 
-  // Disable text input during active states
+  // Disable text input and project selector during active states
   const inputBusy = (newState === "recording" || newState === "transcribing" || newState === "launching");
+  const selectorBusy = (newState === "streaming" || newState === "launching" || newState === "recording" || newState === "transcribing");
   textInput.disabled = inputBusy;
   sendBtn.style.opacity = inputBusy ? "0.3" : "1";
   sendBtn.style.pointerEvents = inputBusy ? "none" : "auto";
+  projectSelector.style.opacity = selectorBusy ? "0.5" : "1";
+  projectSelector.style.pointerEvents = selectorBusy ? "none" : "auto";
 
   updateSessionIndicator();
 }
@@ -2995,7 +3584,7 @@ ctx.cleanups.push(() => document.removeEventListener("keydown", handleKeyDown));
 
 // ── Process cleanup ──
 ctx.cleanups.push(() => {
-  writeVoiceState();
+  syncToManager();
   if (isRemoteMode) {
     if (remoteRecorder?.isRecording) remoteRecorder.cancel();
     if (audioPlayer) audioPlayer.stop();
@@ -3021,6 +3610,7 @@ ctx.cleanups.push(() => {
 
 // ── Text input send handler ──
 function handleTextSend() {
+  cancelTabEdit();
   const text = textInput.value.trim();
   if (!text) return;
   if (uiState === "streaming") {
@@ -3053,13 +3643,13 @@ function handleTextSend() {
     terminalOutput.appendChild(echoLine);
     terminalOutput.appendChild(el("div", { height: "1px", background: `${T.accent}33`, margin: "8px 0" }));
     conversationHistory.push({ role: "user", text, timestamp: Date.now() });
-    writeVoiceState();
+    syncToManager();
     setUIState("streaming");
     updateBadgeState("running");
     networkClient.sendTextCommand(text, currentSessionId);
   } else {
     conversationHistory.push({ role: "user", text, timestamp: Date.now() });
-    writeVoiceState();
+    syncToManager();
     setUIState("launching");
     setTimeout(() => launchClaudeInPanel(text), 200);
   }
@@ -3111,7 +3701,7 @@ function finishRecording() {
 
       setTimeout(() => {
         conversationHistory.push({ role: "user", text: trimmed, timestamp: Date.now() });
-        writeVoiceState();
+        syncToManager();
         launchClaudeInPanel(trimmed);
         setTimeout(() => {
           previewEl.style.opacity = "0";
@@ -3507,7 +4097,7 @@ function launchClaudeInPanel(text) {
   if (ttsService) ttsService.stop();
 
   const isResume = !!currentSessionId;
-  const cwd = expandPath(termProjectPath) || app.vault.adapter.basePath;
+  const cwd = expandPath(getActiveProjectPath()) || app.vault.adapter.basePath;
 
   if (!isResume) {
     fullBuffer = "";
@@ -3597,6 +4187,8 @@ function launchClaudeInPanel(text) {
   const streamState = {
     process: claudeProcess,
     sessionId: currentSessionId,
+    jarvisSessionId: activeJarvisSessionId,  // Track which Jarvis session owns this stream
+    projectIndex: getActiveProjectIndex(),
     detectedLang: currentDetectedLang,
     buffer: "",              // accumulated text output
     lineBuf: "",             // NDJSON line buffer
@@ -3625,6 +4217,10 @@ function launchClaudeInPanel(text) {
     _thinkingShown: false,        // true after first THINKING label rendered (show only once per turn)
   };
   window.__jarvisStreamState = streamState;
+
+  // Update session status
+  const _ownerSession = sessionManager.getSession(activeJarvisSessionId);
+  if (_ownerSession) _ownerSession.status = "streaming";
 
   // ── Set DOM delegates for current widget instance ──
   function attachDelegates(st, oc, to, ce) {
@@ -3670,6 +4266,7 @@ function launchClaudeInPanel(text) {
       if (!hasStatusLabel[toolName]) {
         conversationHistory.push({ role: "tool", text: toolName, timestamp: Date.now() });
       }
+      if (!showToolUseLabels) return;
       const alwaysAsk = interactiveCfg.alwaysAskTools || [];
       if (alwaysAsk.includes(toolName) && !hasStatusLabel[toolName]) {
         const infoLine = el("div", {
@@ -3697,14 +4294,16 @@ function launchClaudeInPanel(text) {
         addMessageCopyIcon(oc, () => currentTurnBuffer);
       }
       // Add completion line
-      const completeLine = el("div", {
-        color: code === 0 ? T.accent : T.red,
-        opacity: code === 0 ? "0.6" : "1",
-        marginTop: "8px",
-        fontSize: isNarrow ? "10px" : "11px",
-        letterSpacing: "1px",
-      }, code === 0 ? "[Process complete]" : `[Process exited with code ${code}]`);
-      to.appendChild(completeLine);
+      if (showCompletionLabel || code !== 0) {
+        const completeLine = el("div", {
+          color: code === 0 ? T.accent : T.red,
+          opacity: code === 0 ? "0.6" : "1",
+          marginTop: "8px",
+          fontSize: isNarrow ? "10px" : "11px",
+          letterSpacing: "1px",
+        }, code === 0 ? `[${completionLabel}]` : `[Process exited with code ${code}]`);
+        to.appendChild(completeLine);
+      }
       to.scrollTop = to.scrollHeight;
       // TTS: clear flush timer and speak remaining
       if (speakFlushTimer) clearTimeout(speakFlushTimer);
@@ -3723,7 +4322,24 @@ function launchClaudeInPanel(text) {
       if (code === 0 && currentTurnBuffer) {
         conversationHistory.push({ role: "assistant", text: currentTurnBuffer, timestamp: Date.now() });
       }
-      writeVoiceState();
+      // Handle background stream completion (user switched tabs while this was streaming)
+      const ownerSession = st.jarvisSessionId ? sessionManager.getSession(st.jarvisSessionId) : null;
+      if (ownerSession) {
+        ownerSession.sessionId = currentSessionId;
+        ownerSession.conversationHistory = conversationHistory;
+        ownerSession.fullBuffer = fullBuffer;
+        ownerSession.status = code === 0 ? "done" : "error";
+        ownerSession.lastActiveAt = Date.now();
+        // If stream completed in background (different active session), set notification badge
+        if (st.jarvisSessionId !== sessionManager.getActiveSessionId()) {
+          ownerSession._notifyBadge = true;
+          sessionManager.saveImmediate();
+          renderTabBar(); // Update tab to show badge
+          window.__jarvisStreamState = null;
+          return; // Don't change UI state — user is viewing another session
+        }
+      }
+      syncToManager();
       window.__jarvisStreamState = null;
       setUIState(code === 0 ? "done" : "error");
     };
@@ -3972,7 +4588,7 @@ if (isRemoteMode && networkClient) {
     if (remoteFullBuffer) {
       conversationHistory.push({ role: "assistant", text: remoteFullBuffer, timestamp: Date.now() });
     }
-    writeVoiceState();
+    syncToManager();
 
     // Speak remaining buffer (local TTS)
     if (remoteTtsMode === "local" && ttsService && ttsService.isEnabled && !ttsService.isMuted && remoteSpeakBuffer.trim()) {
@@ -3981,10 +4597,12 @@ if (isRemoteMode && networkClient) {
     remoteSpeakBuffer = "";
     pendingUserInput = "";
 
-    terminalOutput.appendChild(el("div", {
-      color: T.accent, opacity: "0.6", marginTop: "8px",
-      fontSize: isNarrow ? "10px" : "11px", letterSpacing: "1px",
-    }, "[Process complete]"));
+    if (showCompletionLabel) {
+      terminalOutput.appendChild(el("div", {
+        color: T.accent, opacity: "0.6", marginTop: "8px",
+        fontSize: isNarrow ? "10px" : "11px", letterSpacing: "1px",
+      }, `[${completionLabel}]`));
+    }
     terminalOutput.scrollTop = terminalOutput.scrollHeight;
 
     remoteFullBuffer = "";
@@ -4096,19 +4714,21 @@ ctx.registerPausable(
         const recoverContent = el("div", { color: T.text });
         recoverContent.appendChild(markdownRenderer.renderMarkdown(st.buffer));
         terminalOutput.appendChild(recoverContent);
-        const completeLine = el("div", {
-          color: st.exitCode === 0 ? T.accent : T.red,
-          opacity: st.exitCode === 0 ? "0.6" : "1",
-          marginTop: "8px",
-          fontSize: isNarrow ? "10px" : "11px",
-          letterSpacing: "1px",
-        }, st.exitCode === 0 ? "[Process complete]" : `[Process exited with code ${st.exitCode}]`);
-        terminalOutput.appendChild(completeLine);
+        if (showCompletionLabel || st.exitCode !== 0) {
+          const completeLine = el("div", {
+            color: st.exitCode === 0 ? T.accent : T.red,
+            opacity: st.exitCode === 0 ? "0.6" : "1",
+            marginTop: "8px",
+            fontSize: isNarrow ? "10px" : "11px",
+            letterSpacing: "1px",
+          }, st.exitCode === 0 ? `[${completionLabel}]` : `[Process exited with code ${st.exitCode}]`);
+          terminalOutput.appendChild(completeLine);
+        }
         addMessageCopyIcon(recoverContent, () => st.buffer);
       }
       conversationHistory = st.conversationHistory || conversationHistory;
       window.__jarvisStreamState = null;
-      writeVoiceState();
+      syncToManager();
       setUIState(st.exitCode === 0 ? "done" : "error");
     }
     return;
@@ -4119,6 +4739,10 @@ ctx.registerPausable(
   conversationHistory = st.conversationHistory || conversationHistory;
   currentDetectedLang = st.detectedLang || null;
   claudeProcess = st.process;
+  if (st.jarvisSessionId) {
+    activeJarvisSessionId = st.jarvisSessionId;
+    sessionManager.setActiveSession(st.jarvisSessionId);
+  }
 
   // Show terminal with accumulated buffer
   openTerminalPanel();
@@ -4186,6 +4810,7 @@ ctx.registerPausable(
     if (!hasStatusLabel[toolName]) {
       conversationHistory.push({ role: "tool", text: toolName, timestamp: Date.now() });
     }
+    if (!showToolUseLabels) return;
     const alwaysAsk = interactiveCfg.alwaysAskTools || [];
     if (alwaysAsk.includes(toolName) && !hasStatusLabel[toolName]) {
       const infoLine = el("div", {
@@ -4210,14 +4835,16 @@ ctx.registerPausable(
     if (currentTurnBuffer) {
       addMessageCopyIcon(recOutputContent, () => currentTurnBuffer);
     }
-    const completeLine = el("div", {
-      color: code === 0 ? T.accent : T.red,
-      opacity: code === 0 ? "0.6" : "1",
-      marginTop: "8px",
-      fontSize: isNarrow ? "10px" : "11px",
-      letterSpacing: "1px",
-    }, code === 0 ? "[Process complete]" : `[Process exited with code ${code}]`);
-    terminalOutput.appendChild(completeLine);
+    if (showCompletionLabel || code !== 0) {
+      const completeLine = el("div", {
+        color: code === 0 ? T.accent : T.red,
+        opacity: code === 0 ? "0.6" : "1",
+        marginTop: "8px",
+        fontSize: isNarrow ? "10px" : "11px",
+        letterSpacing: "1px",
+      }, code === 0 ? `[${completionLabel}]` : `[Process exited with code ${code}]`);
+      terminalOutput.appendChild(completeLine);
+    }
     terminalOutput.scrollTop = terminalOutput.scrollHeight;
     if (speakFlushTimer) clearTimeout(speakFlushTimer);
     if (ttsService && ttsService.isEnabled && !ttsService.isMuted && speakBuffer.trim()) {
@@ -4231,7 +4858,23 @@ ctx.registerPausable(
     if (code === 0 && currentTurnBuffer) {
       conversationHistory.push({ role: "assistant", text: currentTurnBuffer, timestamp: Date.now() });
     }
-    writeVoiceState();
+    // Handle background stream completion
+    const ownerSession = st.jarvisSessionId ? sessionManager.getSession(st.jarvisSessionId) : null;
+    if (ownerSession) {
+      ownerSession.sessionId = currentSessionId;
+      ownerSession.conversationHistory = conversationHistory;
+      ownerSession.fullBuffer = fullBuffer;
+      ownerSession.status = code === 0 ? "done" : "error";
+      ownerSession.lastActiveAt = Date.now();
+      if (st.jarvisSessionId !== sessionManager.getActiveSessionId()) {
+        ownerSession._notifyBadge = true;
+        sessionManager.saveImmediate();
+        renderTabBar();
+        window.__jarvisStreamState = null;
+        return;
+      }
+    }
+    syncToManager();
     window.__jarvisStreamState = null;
     setUIState(code === 0 ? "done" : "error");
   };

@@ -103,6 +103,8 @@ ctx.voiceService = loadModule("services/voice-service.js")(ctx);
 ctx.cleanups.push(() => ctx.voiceService.cleanup());
 ctx.ttsService = loadModule("services/tts-service.js")(ctx);
 ctx.cleanups.push(() => ctx.ttsService.cleanup());
+ctx.sessionManager = loadModule("services/session-manager.js")(ctx);
+ctx.cleanups.push(() => ctx.sessionManager.cleanup());
 
 // ── Load network client for remote voice mode ──
 if (config.widgets?.voiceCommand?.mode === "remote") {

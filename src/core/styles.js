@@ -200,6 +200,102 @@ styleEl.textContent = `
   .jarvis-code-pre::-webkit-scrollbar-track {
     background: transparent;
   }
+  /* ── Project dropdown animation ── */
+  @keyframes jarvisDropdownSlideIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Project dropdown ── */
+  .jarvis-project-dropdown {
+    animation: jarvisDropdownSlideIn 0.15s ease-out forwards;
+  }
+  .jarvis-project-dropdown::-webkit-scrollbar {
+    width: 4px;
+  }
+  .jarvis-project-dropdown::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.2);
+    border-radius: 2px;
+  }
+  .jarvis-project-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* ── Session tab bar ── */
+  .jarvis-tab-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-top: 1px solid rgba(0, 212, 255, 0.08);
+    background: rgba(0, 0, 0, 0.2);
+    min-height: 34px;
+  }
+  .jarvis-tab-bar::-webkit-scrollbar {
+    height: 2px;
+  }
+  .jarvis-tab-bar::-webkit-scrollbar-thumb {
+    background: rgba(0, 212, 255, 0.15);
+    border-radius: 1px;
+  }
+  .jarvis-tab-bar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  /* ── Session tab ── */
+  .jarvis-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s ease;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .jarvis-tab:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .jarvis-tab .jarvis-tab-close {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    font-size: 9px;
+    padding: 1px 3px;
+    border-radius: 3px;
+    line-height: 1;
+  }
+  .jarvis-tab:hover .jarvis-tab-close {
+    opacity: 0.5;
+  }
+  .jarvis-tab .jarvis-tab-close:hover {
+    opacity: 1;
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c !important;
+  }
+
+  /* ── Drag & drop ── */
+  .jarvis-tab[draggable="true"] { cursor: grab; }
+  .jarvis-tab.jarvis-dragging { opacity: 0.4; cursor: grabbing; }
+  .jarvis-tab.jarvis-drag-over { border-left: 2px solid rgba(0, 212, 255, 0.6); }
+
+  /* ── Tab notification badge ── */
+  .jarvis-tab-badge {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    animation: jarvisPulse 2s ease-in-out infinite;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     * {
       animation-duration: 0.01ms !important;

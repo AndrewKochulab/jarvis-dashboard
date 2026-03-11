@@ -47,7 +47,7 @@
 - **Agent Cards** — Visual AI agent fleet with unique robot avatars, skill pills, live status, and memory freshness
 
 ### Productivity
-- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel with syntax-highlighted code blocks, text-to-speech voice responses (Piper neural TTS with multi-language auto-detection), interactive mode with tool permission management, configurable model selection, and multi-turn session continuity — no app-switching required
+- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel with multi-session tab management (up to 10 concurrent sessions with drag & drop reordering, editable names, and per-session color variation), syntax-highlighted code blocks, text-to-speech voice responses (Piper neural TTS with multi-language auto-detection), interactive mode with tool permission management, configurable model selection and terminal UI, and multi-turn session continuity — no app-switching required
 - **Focus Timer** — Pomodoro timer with circular progress, customizable work/break presets, and automatic vault logging
 - **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags and optional voice-to-text dictation
 
@@ -463,7 +463,16 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
   "zoomMin": 0.92,
   "zoomMax": 1.08,
   "terminal": {
-    "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault"
+    "title": "JARVIS OUTPUT",
+    "showProjectTag": true,
+    "showStatusBadge": true,
+    "showCopyButton": true,
+    "showCompletionLabel": true,
+    "completionLabel": "Process complete",
+    "showStatusLabels": true,
+    "showToolUseLabels": true,
+    "showCommand": false,
+    "codeHighlighting": { "enabled": true }
   }
 }
 ```
@@ -476,9 +485,17 @@ Analytics are computed from Claude Code session transcripts and cached for perfo
 | `model` | Claude default | Claude model alias (`"sonnet"`, `"opus"`, `"haiku"`) or full model ID. Applied on every invocation, including resumed sessions. Set to `null` or omit to use Claude Code's default. |
 | `zoomMin` | `0.92` | Minimum scale for the recording zoom-wave animation |
 | `zoomMax` | `1.08` | Maximum scale for the recording zoom-wave animation |
+| `terminal.title` | `"JARVIS OUTPUT"` | Text displayed in the terminal header bar |
 | `terminal.projectPath` | Vault path | Working directory for the `claude` child process. `~` is expanded automatically. |
 | `terminal.claudePath` | Auto-detected | Override path to `claude` binary. By default searches `~/.local/bin/`, `/usr/local/bin/`, `/opt/homebrew/bin/`. |
-| `terminal.showCommand` | `true` | Show/hide the CLI command prefix (`claude --print`, `claude --resume`) in the terminal echo line. When `false`, only `$ <your message>` is shown. |
+| `terminal.showCommand` | `false` | Show/hide the CLI command prefix (`claude --print`, `claude --resume`) in the terminal echo line. When `false`, only `$ <your message>` is shown. |
+| `terminal.showProjectTag` | `true` | Show/hide the project name tag in the terminal header |
+| `terminal.showStatusBadge` | `true` | Show/hide the status badge (Running / Done / Error) in the terminal header |
+| `terminal.showCopyButton` | `true` | Show/hide the copy-to-clipboard button in the terminal header |
+| `terminal.showCompletionLabel` | `true` | Show/hide the `[Process complete]` label after each response |
+| `terminal.completionLabel` | `"Process complete"` | Custom text for the completion label |
+| `terminal.showStatusLabels` | `true` | Show/hide status labels (thinking, reading, writing) during streaming |
+| `terminal.showToolUseLabels` | `true` | Show/hide inline tool use indicators (e.g., `⚡ Read`, `⚡ Edit`) during streaming |
 
 The widget reuses the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition and supports [Text-to-Speech](#text-to-speech) for voice responses.
 
@@ -806,26 +823,35 @@ An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. ex
 - Keeps stdin open for interactive mode (permission responses, question answers) or closes for print mode
 - Process cleanup on widget destroy, escape key, or panel close
 
-**Session continuity:**
+**Multi-session management:**
 
-After the first response completes, a session indicator bar appears between the arc reactor and the terminal panel:
+JARVIS supports multiple concurrent sessions across different projects, managed through a tab bar at the bottom of the terminal panel:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  ● SESSION  #a3f2c1d                [Resume]  [New Session]  │
+│ ● 📓 MyLifeVault │ ● 🍎 CaloriesTracker │ ● 📦 CoreKit │ + │
 └─────────────────────────────────────────────────────────┘
 ```
+
+- **Tab bar** — Each session appears as a tab with the project icon, label, and a colored dot. The active tab is highlighted with the session's color.
+- **"+" button** — Opens a project picker to create a new session for any tracked project. Supports up to 10 concurrent sessions (oldest idle sessions are auto-pruned).
+- **Session color variation** — Multiple sessions for the same project get distinct but related colors (hue-shifted variants of the project's base color).
+- **Editable tab names** — Double-click a tab label to rename it inline. Press Enter to save, Escape to cancel. Empty names revert to the default project label.
+- **Drag & drop reordering** — Drag tabs to rearrange their order. The new order is persisted immediately.
+- **Close button** — Each tab has an `✕` that closes that session. Closing the last session creates a fresh default session.
+- **Background notifications** — When a non-active session finishes streaming, its tab shows a pulsing notification badge.
+- **Project selector** — A dropdown above the arc reactor lets you pick the initial project. It auto-hides once sessions exist (the "+" button handles new sessions from then on).
+
+**Session continuity:**
 
 - The session ID is automatically detected from Claude Code's JSONL transcript files
 - Tap JARVIS again to continue the conversation — `--resume <session-id>` is passed automatically
 - Multi-turn responses are separated by dashed dividers in the terminal panel
-- **Resume** — reopens the terminal panel if closed and prompts you to speak
-- **New Session** — clears the conversation and starts fresh
-- Closing the terminal panel with `[✕]` preserves the session — you can resume later
+- Closing the terminal panel with `[✕]` preserves all sessions — you can resume later
 
 **State persistence:**
 
-Session state survives navigation and Obsidian restarts. When you switch to another note and return, the terminal panel restores with your full conversation history, session indicator, and copy buffer intact. State is stored in `~/.claude/projects/<project>/jarvis-voice-state.json`.
+All session state is stored in `~/.claude/jarvis-sessions.json` and survives navigation and Obsidian restarts. When you switch to another note and return, the terminal panel restores with your full conversation history, tab bar, and session state intact.
 
 **Features:**
 - Stylized "J" letter icon with monospace font and cyan glow
@@ -833,9 +859,13 @@ Session state survives navigation and Obsidian restarts. When you switch to anot
 - Synchronized breathing and zoom-wave animations during recording (configurable via `zoomMin`/`zoomMax`)
 - Ripple effect on recording start
 - Real-time token-by-token streaming — responses appear as they're generated
+- Multi-session management with tab bar, project picker, drag & drop reordering, and editable tab names
 - Multi-turn session continuity with automatic `--resume` detection
-- Persistent state across navigation and Obsidian restarts
+- Persistent state across navigation and Obsidian restarts (stored in `~/.claude/jarvis-sessions.json`)
+- Up to 10 concurrent sessions with auto-pruning of oldest idle sessions
+- Session color variation — multiple sessions for the same project get distinct hue-shifted colors
 - Copy full conversation to clipboard with one click
+- Configurable terminal UI — toggle project tag, status badge, copy button, completion label, status labels, and tool use labels via config flags
 - Configurable command echo visibility (`showCommand`)
 - Escape key cancels recording or kills an active stream
 - Transcribed text preview before streaming begins
@@ -1268,6 +1298,7 @@ jarvis_dashboard/
       markdown-renderer.js            Syntax highlighting for 20+ languages
     services/
       session-parser.js               JSONL transcript parsing (with mtime caching)
+      session-manager.js              Multi-session CRUD, persistence, project switching
       stats-engine.js                 30-day analytics engine
       timer-service.js                Focus timer persistence
       tts-service.js                  Multi-language TTS (Piper, say, speechSynthesis)
@@ -1279,7 +1310,7 @@ jarvis_dashboard/
       system-diagnostics.js           Stats cards
       agent-cards.js                  Robot avatars & agent grid
       activity-analytics.js           Heatmap, charts
-      jarvis-voice-command.js         Arc reactor voice command with interactive mode
+      jarvis-voice-command.js         Arc reactor voice command with multi-session & interactive mode
       jarvis-voice-command-mobile.js  Mobile voice command (companion server)
       communication-link.js           Terminal widget
       focus-timer.js                  Pomodoro timer

@@ -110,7 +110,14 @@
       "zoomMin": 0.92,
       "zoomMax": 1.08,
       "terminal": {
-        "projectPath": "~/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault",
+        "title": "JARVIS OUTPUT",
+        "showProjectTag": true,
+        "showStatusBadge": true,
+        "showCopyButton": true,
+        "showCompletionLabel": true,
+        "completionLabel": "Process complete",
+        "showStatusLabels": true,
+        "showToolUseLabels": true,
         "showCommand": false,
         "codeHighlighting": { "enabled": true }
       },
