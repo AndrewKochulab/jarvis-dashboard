@@ -806,10 +806,17 @@ The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper]
 
    By default, `piper-tts` does not include the `pathvalidate` library. If you see the error `ModuleNotFoundError: No module named 'pathvalidate'`, run the following:
 
-   ```sh
-   pipx inject piper-tts pathvalidate
-   ```
-   
+   - **If you installed via `pipx` (recommended):**
+
+      ```sh
+      pipx inject piper-tts pathvalidate
+      ```
+   - **If you installed via `pip` / `pip3`:**
+
+      ```sh
+      pip3 install pathvalidate
+      ```
+
    Verify the installation:
 
    ```bash
