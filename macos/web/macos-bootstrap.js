@@ -447,7 +447,21 @@ window.__macosBootstrap = async function () {
     },
 
     spawn(program, args, opts) {
-      return adapter.spawn(program, args || [], opts || {});
+      // Translate Node.js spawn opts to Tauri SpawnOpts.
+      // Node passes { cwd, env (full replacement), stdio }, but Tauri
+      // inherits the parent env and only needs additions + removals.
+      const tauriOpts = {};
+      if (opts?.cwd) tauriOpts.cwd = opts.cwd;
+      // Extract env additions (skip process.env inherited keys — they don't exist here)
+      if (opts?.env) {
+        const additions = {};
+        for (const [k, v] of Object.entries(opts.env)) {
+          if (v != null && typeof v === "string") additions[k] = v;
+        }
+        if (Object.keys(additions).length > 0) tauriOpts.env = additions;
+      }
+      // env_remove is handled by Rust (CLAUDECODE etc.) — no action needed here
+      return adapter.spawn(program, args || [], tauriOpts);
     },
   };
 

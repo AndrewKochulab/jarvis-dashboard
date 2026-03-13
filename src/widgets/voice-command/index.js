@@ -75,6 +75,7 @@ const recorder = createRecorder({
   voiceService: isRemoteMode ? null : voiceService,
   networkClient,
   getCurrentSessionId: () => currentSessionId,
+  getProjectPath: () => storage.getActiveProjectPath(),
 });
 
 const tts = createTTSAdapter({
@@ -482,7 +483,7 @@ textInput.onSend((text) => {
     syncToManager();
     setUIState("streaming");
     terminal.setBadgeState("running");
-    networkClient.sendTextCommand(text, currentSessionId);
+    networkClient.sendTextCommand(text, currentSessionId, storage.getActiveProjectPath());
   } else {
     conversationHistory.push({ role: "user", text, timestamp: Date.now() });
     syncToManager();

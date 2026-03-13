@@ -351,8 +351,31 @@ function getAllSessions() {
     const rootPath = expandHome(config.projects.rootPath);
     const trackedProjects = getTrackedProjects();
 
+    // Build a label lookup from tracked projects
+    const trackedDirs = new Map();
     for (const proj of trackedProjects) {
-      const projPath = nodePath.join(rootPath, proj.dir);
+      trackedDirs.set(proj.dir, proj.label);
+    }
+
+    // Scan all project directories (not just tracked) to find active sessions.
+    // Tracked projects get their configured label; untracked ones get a derived label.
+    let allDirs;
+    try {
+      allDirs = nodeFs.readdirSync(rootPath)
+        .filter(entry => entry.startsWith("-"));
+    } catch { allDirs = []; }
+
+    // Ensure tracked projects are included even if readdirSync missed them
+    for (const proj of trackedProjects) {
+      if (!allDirs.includes(proj.dir)) allDirs.push(proj.dir);
+    }
+
+    for (const dir of allDirs) {
+      const projPath = nodePath.join(rootPath, dir);
+      const label = trackedDirs.get(dir)
+        || dir.split("-").filter(Boolean).pop()
+        || dir;
+
       let files;
       try {
         files = nodeFs.readdirSync(projPath)
@@ -381,11 +404,11 @@ function getAllSessions() {
         }
 
         if (info) {
-          info.project = proj.label;
+          info.project = label;
           getSubagentDescriptions(fp);
           info.subagents = getSubagentsForSession(projPath, file.name, processRunning);
           for (const sub of info.subagents) {
-            sub.project = proj.label;
+            sub.project = label;
           }
           sessions.push(info);
           activeFiles.add(fp);

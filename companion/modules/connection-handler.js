@@ -72,9 +72,9 @@ class ConnectionHandler {
   }
 
   restoreSession(sessionId) {
-    if (sessionId && !this.runner.sessionId) {
-      this.runner.sessionId = sessionId;
-    }
+    // Always sync to the client's declared session.
+    // null/undefined means "new session" — clear so Claude starts fresh.
+    this.runner.sessionId = sessionId || null;
   }
 
   cleanup() {
