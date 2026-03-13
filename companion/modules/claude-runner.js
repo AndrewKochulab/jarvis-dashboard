@@ -6,21 +6,7 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-
-function expandPath(p) {
-  if (!p) return os.homedir();
-  if (p.startsWith("~/") || p === "~") {
-    return p.replace("~", os.homedir());
-  }
-  return p;
-}
-
-function stripAnsi(str) {
-  return str.replace(
-    /[\x1B\x9B][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><~]/g,
-    ""
-  );
-}
+const { expandPath, stripAnsi } = require("./utils");
 
 class ClaudeRunner {
   constructor(config) {
@@ -52,8 +38,12 @@ class ClaudeRunner {
 
   get isAvailable() { return !!this._claudePath; }
 
+  setProjectPath(projectPath) {
+    if (projectPath) this._projectPath = projectPath;
+  }
+
   _getProjectSessionDir() {
-    const cwd = expandPath(this._projectPath);
+    const cwd = expandPath(this._projectPath, os.homedir());
     const escaped = cwd.replace(/^\//, "").replace(/\//g, "-");
     return path.join(os.homedir(), ".claude", "projects", escaped);
   }
@@ -148,7 +138,7 @@ class ClaudeRunner {
       return { cancel: () => {} };
     }
 
-    const cwd = expandPath(this._projectPath);
+    const cwd = expandPath(this._projectPath, os.homedir());
     const args = this._buildArgs();
     const snapshot = this._snapshotJsonlFiles();
 
