@@ -53,11 +53,11 @@
         { "label": "10m", "ms": 600000 },
         { "label": "15m", "ms": 900000 }
       ],
-      "logPath": "Work/Productivity"
+      "logPath": "Productivity"
     },
     "quickCapture": {
-      "targetFolder": "NoteLab",
-      "tag": "notelab/capture",
+      "targetFolder": "Inbox",
+      "tag": "inbox/capture",
       "voice": {
         "enabled": true,
         "lang": "en",
@@ -85,8 +85,8 @@
     },
     "missionControl": {
       "dashboards": [
-        { "name": "Health Dashboard", "path": "MOCs/Health Dashboard", "color": "#ff6b6b", "icon": "\u2665" },
-        { "name": "Analysis Dashboard", "path": "MOCs/Analysis Dashboard", "color": "#7c6bff", "icon": "\u25c9" }
+        { "name": "Dashboard 1", "path": "MOCs/Dashboard-1", "color": "#ff6b6b", "icon": "\u2665" },
+        { "name": "Dashboard 2", "path": "MOCs/Dashboard-2", "color": "#7c6bff", "icon": "\u25c9" }
       ]
     },
     "recentActivity": {
@@ -142,7 +142,7 @@
         "engine": "piper",
         "say": { "voice": "Daniel", "rate": 160 },
         "piper": {
-          "binaryPath": "/Users/andrewkochulab/Library/Python/3.9/bin/piper",
+          "binaryPath": "piper",
           "modelPath": "~/.config/piper/en_US-joe-medium.onnx",
           "lengthScale": null,
           "noiseScale": 0.4,
@@ -207,6 +207,14 @@
   },
   "platform": {
     "vaultBasePath": "",
-    "dashboardPath": ""
+    "dashboardPath": "",
+    "ios": {
+      "bundleId": "com.jarvis.dashboard",
+      "teamId": ""
+    },
+    "macos": {
+      "bundleId": "com.jarvis.dashboard",
+      "productName": "Jarvis"
+    }
   }
 }

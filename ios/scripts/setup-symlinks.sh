@@ -17,4 +17,7 @@ if [ ! -e "$WEB_DIR/shared" ]; then
     echo "[symlink] web/shared → ../../shared"
 fi
 
-echo "[symlink] Done."
+# Apply config (bundle ID, team ID) from config.json
+bash "$SCRIPT_DIR/apply-config.sh"
+
+echo "[setup] Done."

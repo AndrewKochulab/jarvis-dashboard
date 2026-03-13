@@ -172,8 +172,8 @@ Remove a widget by deleting its entry from the layout array.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `targetFolder` | string | `"NoteLab"` | Vault folder for captured notes |
-| `tag` | string | `"notelab/capture"` | Tag applied to captured notes |
+| `targetFolder` | string | `"Inbox"` | Vault folder for captured notes |
+| `tag` | string | `"inbox/capture"` | Tag applied to captured notes |
 | `voice.enabled` | boolean | `true` | Enable voice dictation button |
 | `voice.lang` | string | `"en"` | Speech recognition language |
 | `voice.whisperModel` | string | `"ggml-small.bin" path` | Whisper model for voice capture |
@@ -447,12 +447,18 @@ These are used to calculate cost estimates in System Diagnostics and Live Sessio
 
 ## `platform`
 
-Platform-specific settings (usually set by the platform, not manually).
+Platform-specific settings.
 
 | Key | Type | Default | Description |
 |---|---|---|---|
 | `vaultBasePath` | string | `""` | Absolute path to vault root |
 | `dashboardPath` | string | `""` | Path to dashboard within vault |
+| `ios.bundleId` | string | `"com.jarvis.dashboard"` | iOS app bundle identifier |
+| `ios.teamId` | string | `""` | Apple Development Team ID for signing |
+| `macos.bundleId` | string | `"com.jarvis.dashboard"` | macOS app bundle identifier |
+| `macos.productName` | string | `"Jarvis"` | macOS app display name |
+
+iOS settings are applied by running `bash ios/scripts/apply-config.sh` (or `setup-symlinks.sh` which calls it automatically). macOS settings are applied automatically during `npm run dev` / `npm run build` via the prebuild step.
 
 ## Agent Registry
 

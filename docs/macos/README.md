@@ -20,17 +20,24 @@ cd macos
 npm install
 ```
 
-### Step 2: Create Symlinks
+### Step 2: Configure Platform Settings (optional)
 
-```bash
-node scripts/setup-symlinks.js
+Set your macOS bundle identifier and product name in `src/config/config.json`:
+
+```json
+{
+  "platform": {
+    "macos": {
+      "bundleId": "com.yourname.jarvis",
+      "productName": "Jarvis"
+    }
+  }
+}
 ```
 
-This creates:
-- `macos/web/src/` → `../../src/`
-- `macos/web/shared/` → `../../shared/`
+These values are applied automatically during `npm run dev` / `npm run build` via the prebuild step, which runs `setup-symlinks.js` (creates symlinks) and `apply-config.js` (patches `tauri.conf.json`).
 
-### Step 3: Configure
+### Step 3: Configure Dashboard
 
 Ensure `src/config/config.json` exists (see [Setup Guide](../setup/README.md)).
 
@@ -160,7 +167,7 @@ Key settings in `macos/src-tauri/tauri.conf.json`:
 
 ```json
 {
-  "productName": "Jarvis Dashboard",
+  "productName": "Jarvis",
   "version": "1.0.0",
   "identifier": "com.jarvis.dashboard",
   "build": {
@@ -174,6 +181,8 @@ Key settings in `macos/src-tauri/tauri.conf.json`:
   }
 }
 ```
+
+> The `identifier` and `productName` values can be overridden via `platform.macos.bundleId` and `platform.macos.productName` in `config.json`. The prebuild step applies them automatically.
 
 ## Troubleshooting
 

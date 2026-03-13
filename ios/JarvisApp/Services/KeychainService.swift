@@ -2,7 +2,7 @@ import Security
 import Foundation
 
 enum KeychainService {
-    private static let service = "com.andrewkochulab.jarvis"
+    private static let service = "com.jarvis.dashboard"
 
     static func save(key: String, value: String) {
         guard let data = value.data(using: .utf8) else { return }

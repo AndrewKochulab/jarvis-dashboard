@@ -10,8 +10,8 @@ Quickly capture notes to your vault with optional voice dictation. Type or speak
 {
   "widgets": {
     "quickCapture": {
-      "targetFolder": "NoteLab",
-      "tag": "notelab/capture",
+      "targetFolder": "Inbox",
+      "tag": "inbox/capture",
       "voice": {
         "enabled": true,
         "lang": "en",
@@ -24,8 +24,8 @@ Quickly capture notes to your vault with optional voice dictation. Type or speak
 
 | Key | Type | Default | Description |
 |---|---|---|---|
-| `targetFolder` | string | `"NoteLab"` | Vault folder for captured notes |
-| `tag` | string | `"notelab/capture"` | Tag applied to notes |
+| `targetFolder` | string | `"Inbox"` | Vault folder for captured notes |
+| `tag` | string | `"inbox/capture"` | Tag applied to notes |
 | `voice.enabled` | boolean | `true` | Show microphone button |
 | `voice.lang` | string | `"en"` | Speech recognition language |
 | `voice.whisperModel` | string | *(path)* | Whisper model for dictation |

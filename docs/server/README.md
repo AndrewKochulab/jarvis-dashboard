@@ -60,7 +60,7 @@ Writes `src/config/config.local.json` with your Mac's hostname and the generated
 Runs `npm install` in the `companion/` directory.
 
 ### Step 6: Generate LaunchAgent Plist
-Creates `com.jarvis.companion.plist` for auto-starting the server on login.
+Creates `com.jarvis.companion.plist` from the template `com.jarvis.companion.plist.example` with your paths filled in. The generated file is gitignored; the template is tracked in git.
 
 ## Architecture
 
@@ -185,7 +185,13 @@ See [Customization](../customizations/README.md) for all config keys.
 
 ## LaunchAgent (Auto-Start)
 
-The setup script generates a LaunchAgent plist for automatic server startup on login.
+The setup script generates a LaunchAgent plist for automatic server startup on login. A template (`com.jarvis.companion.plist.example`) is tracked in git; the generated `com.jarvis.companion.plist` with your actual paths is gitignored.
+
+If setting up manually, copy the template and edit the paths:
+```bash
+cp companion/com.jarvis.companion.plist.example companion/com.jarvis.companion.plist
+# Edit com.jarvis.companion.plist — replace /path/to/jarvis_dashboard with your actual path
+```
 
 ### Install
 

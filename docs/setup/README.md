@@ -83,8 +83,10 @@ Edit `src/config/config.json` to customize:
 Key settings to change:
 - `projects.mode` — Set to `"auto"` to auto-discover projects, or `"manual"` with `tracked` array
 - `projects.tracked` — List your project directories if using manual mode
-- `widgets.voiceCommand.tts.piper.binaryPath` — Path to your Piper binary
+- `widgets.voiceCommand.tts.piper.binaryPath` — Path to your Piper binary (or just `"piper"` if in PATH)
 - `widgets.voiceCommand.tts.piper.modelPath` — Path to your Piper model
+- `platform.ios.bundleId` / `platform.ios.teamId` — iOS app signing (if building iOS)
+- `platform.macos.bundleId` / `platform.macos.productName` — macOS app identity (if building Tauri)
 
 See [Customization](../customizations/README.md) for all config keys.
 
@@ -119,6 +121,8 @@ After setup, verify:
 - [ ] `src/config/config.json` exists and is valid JSON
 - [ ] `src/config/config.local.json` exists (if using companion server)
 - [ ] Projects are configured in `config.json` (auto or manual mode)
+- [ ] `platform.ios.bundleId` and `platform.ios.teamId` are set (if building iOS app)
+- [ ] `platform.macos.bundleId` and `platform.macos.productName` are set (if building macOS app)
 - [ ] Companion server starts without errors (if needed)
 - [ ] Dashboard loads in your chosen platform
 - [ ] Live Sessions shows your active Claude sessions (if any)

@@ -30,9 +30,30 @@ window.__macosBootstrap = async function () {
   let vaultBasePath = localStorage.getItem("jarvis_vault_path") || "";
 
   if (!vaultBasePath) {
-    // Default for this machine
-    vaultBasePath = homedir + "/Library/Mobile Documents/iCloud~md~obsidian/Documents/MyLifeVault";
-    localStorage.setItem("jarvis_vault_path", vaultBasePath);
+    // No vault configured — prompt user to select one on first launch
+    try {
+      const { open } = window.__TAURI__.dialog;
+      const selected = await open({
+        directory: true,
+        defaultPath: homedir,
+        title: "Select your Obsidian Vault folder",
+      });
+      if (selected) {
+        vaultBasePath = selected;
+        localStorage.setItem("jarvis_vault_path", vaultBasePath);
+      }
+    } catch (e) {
+      // Fallback to prompt if dialog plugin not available
+      const selected = prompt("Enter your Obsidian vault path:");
+      if (selected) {
+        vaultBasePath = selected;
+        localStorage.setItem("jarvis_vault_path", vaultBasePath);
+      }
+    }
+    if (!vaultBasePath) {
+      // User cancelled — use a safe empty default
+      vaultBasePath = homedir;
+    }
   }
 
   adapter._vaultBasePath = vaultBasePath;
@@ -42,7 +63,6 @@ window.__macosBootstrap = async function () {
   if (!dashboardDir) {
     const candidates = [
       vaultBasePath + "/MOCs/jarvis_dashboard",
-      homedir + "/Projects/Utilities/jarvis_dashboard",
     ];
     for (const dir of candidates) {
       if (await invoke("exists", { path: dir + "/src/config/config.example.json" })) {
@@ -209,9 +229,22 @@ window.__macosBootstrap = async function () {
   }
 
   // Pre-cache vault paths used by widgets
+  // Read target folder from config (Quick Capture widget uses this)
+  function getConfigValue(path) {
+    try {
+      const cfgText = _fileCache.get(srcDir + "config/config.json")
+        || _fileCache.get(srcDir + "config/config.example.json");
+      if (!cfgText) return undefined;
+      let obj = JSON.parse(cfgText);
+      for (const key of path.split(".")) { obj = obj?.[key]; }
+      return obj;
+    } catch { return undefined; }
+  }
+
   async function cacheVaultRecentFiles() {
+    const captureFolder = getConfigValue("widgets.quickCapture.targetFolder") || "Inbox";
     const vaultPaths = [
-      vaultBasePath + "/NoteLab",
+      vaultBasePath + "/" + captureFolder,
       vaultBasePath,
     ];
     for (const p of vaultPaths) {
@@ -247,7 +280,8 @@ window.__macosBootstrap = async function () {
   await cacheVaultRecentFiles();
 
   // Timer state
-  const timerStatePath = vaultBasePath + "/Work/Productivity";
+  const timerLogPath = getConfigValue("widgets.focusTimer.logPath") || "Productivity";
+  const timerStatePath = vaultBasePath + "/" + timerLogPath;
   await cacheDir(timerStatePath);
 
   // ── 4. Install require() shim ──
@@ -474,7 +508,8 @@ window.__macosBootstrap = async function () {
       openLinkText(path, sourcePath, newLeaf) {
         // Try to open in Obsidian, fall back to default app
         const fullPath = vaultBasePath + "/" + path;
-        invoke("open_url", { url: "obsidian://open?vault=MyLifeVault&file=" + encodeURIComponent(path) })
+        const vaultName = vaultBasePath.split("/").pop() || "vault";
+        invoke("open_url", { url: "obsidian://open?vault=" + encodeURIComponent(vaultName) + "&file=" + encodeURIComponent(path) })
           .catch(() => invoke("exec_sync", { command: "open '" + fullPath.replace(/'/g, "'\\''") + "'" }));
       },
     },
@@ -543,7 +578,7 @@ window.__macosBootstrap = async function () {
     },
 
     pages(query) {
-      // Parse Dataview query to extract folder name (e.g. '"NoteLab"')
+      // Parse Dataview query to extract folder name (e.g. '"Inbox"')
       let count = _vaultNoteCount;
       if (query) {
         const folderMatch = query.match(/^"([^"]+)"$/);

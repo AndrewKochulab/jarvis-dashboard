@@ -144,6 +144,8 @@ jarvis_dashboard/
 │   ├── server.js                      # Server entry point
 │   ├── setup.sh                       # Setup script (certs, token, deps)
 │   ├── package.json                   # Node.js dependencies
+│   ├── com.jarvis.companion.plist.example  # LaunchAgent template (tracked)
+│   ├── com.jarvis.companion.plist     # Generated LaunchAgent (gitignored)
 │   ├── modules/
 │   │   ├── config.js                  # Server configuration loader
 │   │   ├── server-factory.js          # Dual-server creation (WSS + WS)
@@ -181,7 +183,8 @@ jarvis_dashboard/
 │   │   ├── index.html                 # WebView HTML shell
 │   │   └── ios-bootstrap.js           # iOS adapter + loader init
 │   └── scripts/
-│       └── setup-symlinks.sh          # Symlinks shared/ and src/ into web/
+│       ├── setup-symlinks.sh          # Symlinks shared/ and src/ into web/, calls apply-config
+│       └── apply-config.sh            # Applies platform.ios config to Xcode project
 │
 ├── macos/                             # macOS Tauri 2.0 app
 │   ├── package.json                   # Node.js config (build scripts)
@@ -207,7 +210,8 @@ jarvis_dashboard/
 │   │   ├── index.html                 # WebView HTML shell
 │   │   └── macos-bootstrap.js         # Tauri adapter + loader init
 │   └── scripts/
-│       └── setup-symlinks.js          # Symlinks shared/ and src/ into web/
+│       ├── setup-symlinks.js          # Symlinks shared/ and src/ into web/
+│       └── apply-config.js            # Applies platform.macos config to tauri.conf.json
 │
 └── assets/                            # Images, GIFs, screenshots
     ├── jarvis-dashboard-preview.svg   # Hero banner
@@ -222,10 +226,11 @@ jarvis_dashboard/
 - `src/config/config.local.json` — Network credentials (host, token)
 - `companion/certs/` — Generated TLS certificates
 - `companion/.env` — Auth token
+- `companion/com.jarvis.companion.plist` — Generated LaunchAgent with personal paths
 - `companion/node_modules/` — npm dependencies
 - `macos/node_modules/` — npm dependencies
 - `macos/src-tauri/target/` — Rust build output
-- `ios/JarvisApp.xcodeproj/xcuserdata/` — Xcode user state
+- `**/xcuserdata/` — Xcode user state (any location)
 - `ios/web/src/` — Symlinked from root src/
 - `ios/web/shared/` — Symlinked from root shared/
 - `macos/web/src/` — Symlinked from root src/
@@ -234,3 +239,4 @@ jarvis_dashboard/
 ### Template Files (tracked, meant to be copied)
 - `src/config/config.example.json` → copy to `config.json`
 - `src/config/config.local.example.json` → copy to `config.local.json`
+- `companion/com.jarvis.companion.plist.example` → copy to `com.jarvis.companion.plist`, edit paths

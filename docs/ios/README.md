@@ -14,9 +14,22 @@ The iOS app is a native SwiftUI application that embeds the Jarvis Dashboard in 
 
 ## Project Setup
 
-### Step 1: Create Symlinks
+### Step 1: Configure Platform Settings
 
-The iOS app loads shared JavaScript from `src/` and `shared/` via symlinks:
+Set your iOS bundle identifier and Apple team ID in `src/config/config.json`:
+
+```json
+{
+  "platform": {
+    "ios": {
+      "bundleId": "com.yourname.jarvis",
+      "teamId": "YOUR_APPLE_TEAM_ID"
+    }
+  }
+}
+```
+
+### Step 2: Create Symlinks & Apply Config
 
 ```bash
 cd ios
@@ -27,18 +40,15 @@ This creates:
 - `ios/web/src/` → `../../src/`
 - `ios/web/shared/` → `../../shared/`
 
-### Step 2: Open in Xcode
+And automatically runs `apply-config.sh` which reads `platform.ios` from `config.json` and patches `project.pbxproj` with your bundle ID and team ID.
+
+### Step 3: Open in Xcode
 
 ```bash
 open ios/JarvisApp.xcodeproj
 ```
 
-### Step 3: Configure Signing
-
-1. Select the **JarvisApp** target
-2. Go to **Signing & Capabilities**
-3. Select your **Team**
-4. Change the **Bundle Identifier** to something unique (e.g., `com.yourname.jarvis`)
+If you configured `platform.ios` in step 1, signing is already set. Otherwise, manually select your **Team** and **Bundle Identifier** in Signing & Capabilities.
 
 ## Building
 
@@ -179,7 +189,7 @@ The app requests these permissions (declared in `Info.plist`):
 ## Troubleshooting
 
 **"No such module" build error:**
-Ensure symlinks are created: `cd ios && bash scripts/setup-symlinks.sh`
+Ensure symlinks are created and config applied: `cd ios && bash scripts/setup-symlinks.sh`
 
 **White/blank screen after launch:**
 Check that symlinks point to valid directories. Verify `ios/web/src/` and `ios/web/shared/` exist.

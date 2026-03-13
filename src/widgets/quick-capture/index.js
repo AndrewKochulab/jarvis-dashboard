@@ -4,8 +4,8 @@
 
 const { el, T, config, isNarrow, dv, nodeFs, nodePath, voiceService, addHoverEffect } = ctx;
 const captureCfg = config.widgets?.quickCapture || {};
-const targetFolder = captureCfg.targetFolder || "NoteLab";
-const captureTag = captureCfg.tag || "notelab/capture";
+const targetFolder = captureCfg.targetFolder || "Inbox";
+const captureTag = captureCfg.tag || "inbox/capture";
 
 function loadSub(rel) {
   const code = nodeFs.readFileSync(

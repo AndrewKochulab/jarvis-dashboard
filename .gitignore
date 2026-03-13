@@ -8,6 +8,7 @@ node_modules/
 companion/certs/
 companion/.env
 companion/node_modules/
+companion/com.jarvis.companion.plist
 
 # Personal config (user overrides, created from *.example.json templates)
 src/config/config.json
@@ -23,7 +24,7 @@ macos/web/shared
 
 # Xcode (iOS app)
 ios/build/
-ios/*.xcworkspace/xcuserdata/
+**/xcuserdata/
 ios/DerivedData/
 ios/web/src
 ios/web/shared

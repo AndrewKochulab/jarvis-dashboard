@@ -177,7 +177,8 @@
     },
 
     openNote(path) {
-      invoke("open_url", { url: `obsidian://open?vault=MyLifeVault&file=${encodeURIComponent(path)}` })
+      const vaultName = (adapter._vaultBasePath || "").split("/").pop() || "vault";
+      invoke("open_url", { url: `obsidian://open?vault=${encodeURIComponent(vaultName)}&file=${encodeURIComponent(path)}` })
         .catch(() => {});
     },
 
