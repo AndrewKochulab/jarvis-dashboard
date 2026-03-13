@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>J.A.R.V.I.S.</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a1a;
+      overflow-x: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+    }
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+    #dashboard { width: 100%; min-height: 100vh; }
+    #loading {
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; gap: 12px;
+      height: 100vh;
+      color: #00d4ff; font-size: 14px; letter-spacing: 4px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    #loading .subtitle {
+      font-size: 10px; color: #6b7b8d; letter-spacing: 2px;
+    }
+    #loading.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div>J.A.R.V.I.S.</div>
+    <div class="subtitle">CONNECTING TO SYSTEMS...</div>
+  </div>
+  <div id="dashboard"></div>
+
+  <!-- Error logging for debugging -->
+  <script>
+    window.__jarvisErrors = [];
+    window.onerror = function(msg, url, line, col, err) {
+      window.__jarvisErrors.push("ERR:" + msg + " at " + url + ":" + line);
+      try { window.webkit.messageHandlers.jarvis_showNotice.postMessage({message: "JS: " + msg + " at line " + line}); } catch(e) {}
+    };
+    window.addEventListener("unhandledrejection", function(e) {
+      var reason = e.reason ? (e.reason.message || String(e.reason)) : "unknown";
+      window.__jarvisErrors.push("PROMISE:" + reason);
+      try { window.webkit.messageHandlers.jarvis_showNotice.postMessage({message: "Promise: " + reason}); } catch(ex) {}
+    });
+  </script>
+
+  <!-- Platform adapter -->
+  <script src="shared/bridge/wkwebview-adapter.js"></script>
+
+  <!-- Bootstrap -->
+  <script src="ios-bootstrap.js"></script>
+
+  <!-- Shared loader -->
+  <script src="shared/loader.js"></script>
+
+  <script>
+    (async function main() {
+      try {
+        await window.__iosBootstrap();
+      } catch (err) {
+        var el = document.getElementById("loading");
+        el.classList.remove("hidden");
+        var detail = (err.name || "Error") + ": " + (err.message || "(no message)") +
+          "\n\n" + (err.stack || "");
+        el.innerHTML = '<div style="color:#ff4444">SYSTEM ERROR</div>' +
+          '<div class="subtitle" style="color:#ff8888;word-break:break-all;white-space:pre-wrap;max-width:90vw;font-size:9px">' +
+          detail + '</div>';
+        console.error("[ios] Bootstrap failed:", err);
+      }
+    })();
+  </script>
+</body>
+</html>
