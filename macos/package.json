@@ -1,0 +1,18 @@
+{
+  "name": "macos",
+  "version": "1.0.0",
+  "private": true,
+  "description": "J.A.R.V.I.S. macOS Dashboard — Tauri 2.0",
+  "scripts": {
+    "prebuild": "node scripts/setup-symlinks.js",
+    "dev": "npm run prebuild && npx @tauri-apps/cli dev",
+    "build": "npm run prebuild && npx @tauri-apps/cli build",
+    "tauri": "npx @tauri-apps/cli"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2"
+  }
+}

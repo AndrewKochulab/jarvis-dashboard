@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jarvis</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #0a0a1a;
+      overflow-x: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    /* Tauri titlebar overlay padding */
+    body { padding-top: 28px; }
+    #dashboard { width: 100%; min-height: calc(100vh - 28px); }
+    /* Loading state */
+    #loading {
+      display: flex; align-items: center; justify-content: center;
+      height: calc(100vh - 28px);
+      color: #00d4ff; font-size: 14px; letter-spacing: 4px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+    #loading.hidden { display: none; }
+
+    /* ── Tauri CSS Overrides ── */
+    /* Only override overflow/contain on elements explicitly marked for hover effects */
+    [data-jarvis-overflow-visible] {
+      overflow: visible !important;
+      contain: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">INITIALIZING SYSTEMS...</div>
+  <div id="dashboard"></div>
+
+  <!-- Polyfills -->
+  <script src="shared/polyfills/path.js"></script>
+  <script src="shared/polyfills/buffer.js"></script>
+
+  <!-- Platform adapter -->
+  <script src="shared/bridge/tauri-adapter.js"></script>
+
+  <!-- Bootstrap (monkeypatches + loader invocation) -->
+  <script src="macos-bootstrap.js"></script>
+
+  <!-- Shared loader -->
+  <script src="shared/loader.js"></script>
+
+  <script>
+    // Entry point — runs after all scripts loaded
+    (async function main() {
+      try {
+        await window.__macosBootstrap();
+      } catch (err) {
+        document.getElementById("loading").textContent =
+          "SYSTEM ERROR: " + err.message;
+        console.error("[macos] Bootstrap failed:", err);
+      }
+    })();
+  </script>
+</body>
+</html>
