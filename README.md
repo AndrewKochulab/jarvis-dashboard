@@ -5,1396 +5,194 @@
 <h1 align="center">J.A.R.V.I.S. Dashboard</h1>
 
 <p align="center">
-  <strong>A modular, fully configurable DataviewJS dashboard for monitoring Claude Code sessions, managing AI agent fleets, and boosting productivity.</strong>
+  <strong>A modular AI command center for monitoring Claude Code sessions, voice interaction, analytics, and productivity — across 4 platforms from a single codebase.</strong>
 </p>
 
 <p align="center">
-  Live Sessions &bull; Agent Fleet &bull; 30-Day Analytics &bull; Focus Timer &bull; Quick Capture &bull; Text-to-Speech &bull; Mobile Support &bull; Configurable Layout
+  Voice Commands &bull; Live Sessions &bull; Agent Fleet &bull; 30-Day Analytics &bull; Focus Timer &bull; Multi-Platform &bull; Configurable Everything
 </p>
 
 <p align="center">
-  <a href="#widget-gallery">Gallery</a> &bull;
-  <a href="#installation">Installation</a> &bull;
+  <a href="#see-it-in-action">See it in Action</a> &bull;
   <a href="#quick-start">Quick Start</a> &bull;
-  <a href="#configuration">Configuration</a> &bull;
-  <a href="#widgets">Widgets</a> &bull;
-  <a href="#architecture">Architecture</a> &bull;
-  <a href="#mobile-support">Mobile</a> &bull;
-  <a href="#platform-support">Platform Support</a>
+  <a href="#platforms">Platforms</a> &bull;
+  <a href="#features">Features</a> &bull;
+  <a href="docs/README.md">Documentation</a>
 </p>
 
 ---
 
 ## Why?
 
-| Without Jarvis | With Jarvis |
+| Problem | Jarvis Solution |
 |---|---|
-| No visibility into active Claude Code sessions | Real-time session monitoring with subagent tracking |
+| Claude Code runs headless in a terminal | Real-time session monitoring with Live Sessions widget |
 | No usage analytics or cost tracking | 30-day stats: sessions, tokens, cost, model breakdown |
+| Voice interaction requires complex setup | One-click voice commands with neural TTS + whisper-cpp STT |
 | AI agents are invisible config files | Visual agent fleet with animated robot avatars |
-| No focus/productivity tracking | Built-in Pomodoro timer with vault-integrated logging |
-| Scattered bookmarks and navigation | Unified command center with quick launch and navigation |
+| Scattered productivity tools | Focus timer, quick capture, bookmarks — all in one dashboard |
+| Mobile AI access is clunky | Native iOS app with full voice interaction |
 | One-size-fits-all dashboard | Fully configurable layout, theme, and widgets via JSON |
 
-## Features
-
-**14 widgets**, all independently configurable and removable:
-
-### Monitoring & Analytics
-- **Live Session Monitor** — Real-time Claude Code session tracking with subagent detection, polling every 3 seconds
-- **System Diagnostics** — 30-day stats: total sessions, token usage, estimated cost, favorite model
-- **Activity Analytics** — GitHub-style heatmap, peak hours chart, and model usage breakdown
-- **Agent Cards** — Visual AI agent fleet with unique robot avatars, skill pills, live status, and memory freshness
-
-### Productivity
-- **JARVIS Voice Command** — Arc reactor-style animated button: speak a command, transcribe it offline via whisper-cpp, and stream Claude Code responses in a built-in terminal panel with multi-session tab management (up to 10 concurrent sessions with drag & drop reordering, editable names, and per-session color variation), syntax-highlighted code blocks, text-to-speech voice responses (Piper neural TTS with multi-language auto-detection), interactive mode with tool permission management, configurable model selection and terminal UI, and multi-turn session continuity — no app-switching required
-- **Focus Timer** — Pomodoro timer with circular progress, customizable work/break presets, and automatic vault logging
-- **Quick Capture** — Instant note capture to your inbox folder with frontmatter tags and optional voice-to-text dictation
-
-### Navigation & Shortcuts
-- **Communication Link** — Terminal-style widget to launch Claude Code directly from Obsidian
-- **Quick Launch** — Configurable bookmark grid for apps and URLs with optional group headers
-- **Mission Control** — Navigation hub linking to other vault dashboards
-- **Recent Activity** — Feed of recently modified vault files
-
-### Mobile
-- **JARVIS Mobile Voice Command** — iOS/iPad companion: stream audio to your Mac for processing, receive Claude Code responses in real-time over WebSocket. Requires the [companion server](#mobile-support) running on a Mac on the same network (or via Tailscale VPN).
-
-### Customization
-- **Fully configurable theme** — 15 color values, dark mode optimized
-- **Flexible layout system** — Reorder, group, hide widgets; set columns per row
-- **JSON-driven configuration** — Zero hardcoded values; everything in `config.json`
-- **Auto-scan or manual project tracking** — Discover Claude Code projects automatically or specify them manually
-
-## Widget Gallery
-
-### Quick Look
+## See it in Action
 
 <p align="center">
-  <img src="assets/widgets/quick-look.png" alt="Quick Look" width="100%" />
+  <img src="assets/jarvis-realtime-testing.gif" alt="JARVIS Voice Command Demo" width="100%">
 </p>
 
-### Monitoring & Analytics
+<details>
+<summary><strong>Widget Gallery</strong> (click to expand)</summary>
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <strong>Live Session Monitor</strong><br>
-      <em>Real-time Claude Code session tracking with subagent detection</em><br><br>
-      <img src="assets/widgets/live-sessions.png" alt="Live Sessions" width="100%" />
-    </td>
-    <td align="center" width="50%">
-      <strong>Agent Cards</strong><br>
-      <em>Visual AI agent fleet with unique robot avatars and live status</em><br><br>
-      <img src="assets/widgets/agent-cards.png" alt="Agent Cards" width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <strong>System Diagnostics</strong><br>
-      <em>30-day stats: sessions, tokens, cost, favorite model</em><br><br>
-      <img src="assets/widgets/system-diagnostics.png" alt="System Diagnostics" width="100%" />
-    </td>
-    <td align="center" width="50%">
-      <strong>Activity Analytics</strong><br>
-      <em>Heatmap, peak hours chart, and model usage breakdown</em><br><br>
-      <img src="assets/widgets/activity-analytics.png" alt="Activity Analytics" width="100%" />
-    </td>
-  </tr>
-</table>
-
-### Productivity
-
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <strong>JARVIS Voice Command</strong><br>
-      <em>Arc reactor button — speak and get streamed Claude Code responses inline</em><br><br>
-      <img src="assets/widgets/jarvis-voice-command.png" alt="JARVIS Voice Command" width="100%" />
-    </td>
-    <td align="center" width="50%">
-      <strong>Focus Timer</strong><br>
-      <em>Pomodoro timer with circular progress and vault logging</em><br><br>
-      <img src="assets/widgets/focus-timer.png" alt="Focus Timer" width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <strong>Quick Capture</strong><br>
-      <em>Instant note capture to your inbox folder</em><br><br>
-      <img src="assets/widgets/quick-capture.png" alt="Quick Capture" width="100%" />
-    </td>
-    <td align="center" width="50%"></td>
-  </tr>
-</table>
-
-### Navigation & Shortcuts
-
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <strong>Communication Link</strong><br>
-      <em>Terminal widget to launch Claude Code from Obsidian</em><br><br>
-      <img src="assets/widgets/communication-link.png" alt="Communication Link" width="100%" />
-    </td>
-    <td align="center" width="50%">
-      <strong>Quick Launch</strong><br>
-      <em>Configurable bookmark grid for apps and URLs</em><br><br>
-      <img src="assets/widgets/quick-launch.png" alt="Quick Launch" width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <strong>Mission Control</strong><br>
-      <em>Navigation hub linking to other vault dashboards</em><br><br>
-      <img src="assets/widgets/mission-control.png" alt="Mission Control" width="100%" />
-    </td>
-    <td align="center" width="50%">
-      <strong>Recent Activity</strong><br>
-      <em>Feed of recently modified vault files</em><br><br>
-      <img src="assets/widgets/recent-activity.png" alt="Recent Activity" width="100%" />
-    </td>
-  </tr>
-</table>
-
-## Installation
-
-### Prerequisites
-
-- [Obsidian](https://obsidian.md/) (v1.0+)
-- [Dataview Plugin](https://github.com/blacksmithgu/obsidian-dataview) with **DataviewJS enabled**
-  - Settings > Dataview > Enable JavaScript Queries > ON
-
-### Setup
-
-1. **Clone or download** this repository into your Obsidian vault:
-
-   ```bash
-   cd /path/to/your/vault
-   git clone https://github.com/AndrewKochulab/jarvis-dashboard.git "MOCs/Jarvis Dashboard"
-   ```
-
-   Or download the ZIP and extract it into your vault (e.g., `MOCs/Jarvis Dashboard/`).
-
-2. **Configure your projects** in `src/config/config.json`:
-
-   ```json
-   "projects": {
-     "mode": "manual",
-     "rootPath": "~/.claude/projects/",
-     "tracked": [
-       { "dir": "your-project-directory-name", "label": "My Project" }
-     ]
-   }
-   ```
-
-   > To find your project directory names, run: `ls ~/.claude/projects/`
-
-3. **Open** `Jarvis Dashboard.md` in Obsidian — the dashboard renders automatically.
-
-4. **(Optional) Mobile Setup** — To use JARVIS from your iPhone or iPad, set up the companion server on your Mac. See [Mobile Support](#mobile-support) for details.
-
-### Folder Placement
-
-The dashboard can be placed anywhere in your vault. Recommended locations:
-
-| Location | Use Case |
+| Widget | Preview |
 |---|---|
-| `MOCs/Jarvis Dashboard/` | Standard MOC (Map of Content) structure |
-| `Dashboards/Jarvis Dashboard/` | Dedicated dashboards folder |
-| `Jarvis Dashboard/` | Root-level placement |
+| Voice Command | <img src="assets/widgets/jarvis-voice-command.png" width="600"> |
+| Live Sessions | <img src="assets/widgets/live-sessions.png" width="600"> |
+| Agent Cards | <img src="assets/widgets/agent-cards.png" width="600"> |
+| Focus Timer | <img src="assets/widgets/focus-timer.png" width="300"> |
+| Quick Capture | <img src="assets/widgets/quick-capture.png" width="300"> |
+| Activity Analytics | <img src="assets/widgets/activity-analytics.png" width="600"> |
+| System Diagnostics | <img src="assets/widgets/system-diagnostics.png" width="600"> |
+| Communication Link | <img src="assets/widgets/communication-link.png" width="600"> |
+| Quick Launch | <img src="assets/widgets/quick-launch.png" width="300"> |
+| Mission Control | <img src="assets/widgets/mission-control.png" width="300"> |
+| Recent Activity | <img src="assets/widgets/recent-activity.png" width="600"> |
 
-The dashboard auto-detects its own location and resolves `src/` paths relative to itself.
+</details>
 
 ## Quick Start
 
-After installation, the dashboard works with default settings. To customize it for your setup:
-
-### 1. Set Your Projects
-
-Find your Claude Code project directory names:
-
 ```bash
-ls ~/.claude/projects/
+# 1. Clone
+git clone https://github.com/AndrewKochulab/jarvis-dashboard.git
+cd jarvis-dashboard
+
+# 2. Configure
+cp src/config/config.example.json src/config/config.json
+# Edit config.json — set projects.mode to "auto" and adjust paths
+
+# 3. Open
+# Place in your Obsidian vault and open "Jarvis Dashboard.md"
 ```
 
-Each directory name looks like `-Users-yourname-Projects-MyApp`. Add them to `config.json`:
+For mobile, macOS app, or iOS app setup, see the [Setup Guide](docs/setup/README.md).
 
-```json
-"projects": {
-  "mode": "manual",
-  "rootPath": "~/.claude/projects/",
-  "tracked": [
-    { "dir": "-Users-yourname-Projects-MyApp", "label": "MyApp" },
-    { "dir": "-Users-yourname-Documents-vault", "label": "Vault" }
-  ]
-}
-```
+## Platforms
 
-Or use **auto-scan** to discover all projects automatically:
+Jarvis runs on **4 platforms** from one shared JavaScript codebase:
 
-```json
-"projects": {
-  "mode": "auto",
-  "rootPath": "~/.claude/projects/"
-}
-```
+| Platform | Type | Dashboard | Voice | Claude Execution |
+|---|---|---|---|---|
+| **Obsidian Desktop** | DataviewJS note | Full (13 widgets) | Local (Piper/Say) | Local CLI |
+| **Obsidian Mobile** | DataviewJS note | Voice only | Via server | Via server |
+| **macOS** | Tauri 2.0 app | Full (13 widgets) | Local (Piper/Say) | Local (Rust spawn) |
+| **iOS/iPadOS** | SwiftUI app | Voice only | Via server | Via server |
 
-### 2. Customize Your Bookmarks
+- [Obsidian Setup](docs/obsidian/README.md)
+- [macOS App Build](docs/macos/README.md)
+- [iOS App Build](docs/ios/README.md)
+- [Companion Server](docs/server/README.md) (required for mobile)
 
-Edit the Quick Launch bookmarks in `config.json`. You can organize them into **groups** — headers appear automatically when you have multiple groups:
+## Features
 
-```json
-"quickLaunch": {
-  "groups": [
-    {
-      "name": "Development",
-      "bookmarks": [
-        { "name": "Cursor", "icon": "\u25b8", "color": "#44c98f", "type": "app", "target": "Cursor" },
-        { "name": "Xcode", "icon": "\ud83d\udd28", "color": "#56cfe1", "type": "app", "target": "Xcode" }
-      ]
-    },
-    {
-      "name": "Web",
-      "bookmarks": [
-        { "name": "GitHub", "icon": "\u2b21", "color": "#e0e6ed", "type": "url", "target": "https://github.com" }
-      ]
-    }
-  ]
-}
-```
+### Voice Command System
+- Full-duplex voice interaction with Claude Code
+- Three TTS engines: **Piper** (neural), **macOS Say**, browser speechSynthesis
+- Speech-to-text via **whisper-cpp** with multi-language auto-detection
+- **Interactive mode** with tool permission cards and question handling
+- Multi-session tab bar with drag & drop reordering
+- **JARVIS personality** system with customizable prompts
+- [Voice Command docs](docs/widgets/voice-command.md) | [TTS docs](docs/text-to-speech/README.md) | [STT docs](docs/speech-to-text/README.md)
 
-With a single group, headers are hidden and it renders as a flat grid. The legacy flat format is also supported:
+### 13 Widgets
 
-```json
-"quickLaunch": {
-  "bookmarks": [
-    { "name": "VS Code", "icon": "\u25b8", "color": "#007ACC", "type": "app", "target": "Visual Studio Code" },
-    { "name": "GitHub", "icon": "\u2b21", "color": "#e0e6ed", "type": "url", "target": "https://github.com" }
-  ]
-}
-```
+| Category | Widgets |
+|---|---|
+| **AI Interaction** | Voice Command, Live Sessions, Agent Cards |
+| **Analytics** | System Diagnostics, Activity Analytics (heatmap, peak hours, model breakdown) |
+| **Productivity** | Focus Timer, Quick Capture (with voice dictation) |
+| **Navigation** | Quick Launch, Mission Control, Communication Link, Recent Activity |
+| **Chrome** | Header (title, clock, status), Footer |
 
-### 3. Add Your Dashboards
+All widgets are independently configurable and removable. Control order and layout via the `layout` array in `config.json`. [Widget docs](docs/widgets/README.md)
 
-Add navigation links to your other vault dashboards:
+### Real-time Monitoring
+- Live session tracking with token/cost display, model badges
+- Agent detection and cross-widget status updates
+- 30-day analytics with GitHub-style heatmaps
+- Configurable polling intervals and caching
 
-```json
-"missionControl": {
-  "dashboards": [
-    { "name": "Health Dashboard", "path": "Dashboards/Health", "color": "#ff6b6b", "icon": "\u2665" }
-  ]
-}
-```
+### Cross-Platform Architecture
+- Shared JavaScript codebase with no build step
+- Platform adapters abstract file system, process, and vault operations
+- Module loading via `new Function("ctx", code)` — no import/export
+- [Architecture docs](docs/architecture/README.md)
+
+### Companion Server
+- WebSocket server for mobile client support
+- TLS with self-signed CA certificate chain
+- Token authentication with timing-safe comparison
+- Claude CLI process management, TTS synthesis, audio transcription
+- Auto-start via macOS LaunchAgent
+- [Server docs](docs/server/README.md) | [Security docs](docs/security/README.md)
 
 ## Configuration
 
-All configuration lives in `src/config/config.json`. The file is organized into these sections:
+Four-file config cascade — only override what you need:
 
-### Theme
-
-Customize all 15 colors:
-
-```json
-"theme": {
-  "bg": "#0a0a1a",
-  "panelBg": "#0d1117",
-  "accent": "#00d4ff",
-  "purple": "#7c6bff",
-  "green": "#44c98f",
-  "text": "#e0e6ed"
-}
+```
+config.example.json     (defaults, tracked)
+  → config.json         (personal overrides, gitignored)
+    → config.local.json (credentials, gitignored)
+      → platform overrides
 ```
 
-Only override the colors you want to change — defaults are applied for any missing values.
+Key customization areas:
+- **15 theme colors** — full UI theming
+- **Layout array** — widget order, grouping, column counts
+- **Projects** — auto-scan or manual project list
+- **Voice** — TTS engine, model, personality prompt
+- **Performance** — polling intervals, animation toggle
 
-### Layout
+[Full config reference](docs/customizations/README.md)
 
-The `layout` array controls which widgets appear, their order, and how they're grouped:
+## Documentation
 
-```json
-"layout": [
-  { "type": "header" },
-  { "type": "live-sessions" },
-  { "type": "row", "columns": 2, "widgets": ["focus-timer", "quick-capture"] },
-  { "type": "agent-cards" },
-  { "type": "system-diagnostics" },
-  { "type": "footer" }
-]
-```
+Complete documentation is in the [`docs/`](docs/README.md) folder:
 
-#### Layout Rules
-
-| Entry Type | Behavior |
+| Section | Description |
 |---|---|
-| `{ "type": "widget-name" }` | Renders widget full-width |
-| `{ "type": "row", "columns": N, "widgets": [...] }` | Groups widgets side-by-side in N columns |
-
-#### Customization Examples
-
-**Remove a widget** — delete its entry from the layout array:
-```json
-// Remove activity analytics:
-// Just don't include { "type": "activity-analytics" } in the layout
-```
-
-**Reorder widgets** — change the position in the array:
-```json
-"layout": [
-  { "type": "header" },
-  { "type": "agent-cards" },
-  { "type": "live-sessions" },
-  { "type": "footer" }
-]
-```
-
-**Three widgets in a row**:
-```json
-{ "type": "row", "columns": 3, "widgets": ["focus-timer", "quick-capture", "quick-launch"] }
-```
-
-**Single-column on all screens**:
-```json
-{ "type": "row", "columns": 1, "widgets": ["focus-timer", "quick-capture"] }
-```
-
-### Projects — Manual vs Auto-Scan
-
-#### Manual Mode (Default)
-
-You specify exactly which projects to monitor:
-
-```json
-"projects": {
-  "mode": "manual",
-  "rootPath": "~/.claude/projects/",
-  "tracked": [
-    { "dir": "-Users-john-Projects-MyApp", "label": "MyApp" },
-    { "dir": "-Users-john-Documents-vault", "label": "Vault" }
-  ]
-}
-```
-
-- `dir`: The directory name inside `~/.claude/projects/` (run `ls ~/.claude/projects/` to find them)
-- `label`: Display name shown on the dashboard
-
-#### Auto-Scan Mode
-
-The dashboard automatically discovers all Claude Code project directories:
-
-```json
-"projects": {
-  "mode": "auto",
-  "rootPath": "~/.claude/projects/"
-}
-```
-
-In auto-scan mode:
-- All subdirectories in `~/.claude/projects/` are detected
-- Labels are automatically derived from the last segment of each directory name
-- Results are cached for 60 seconds to maintain performance
-- No manual configuration needed — new projects appear automatically
-
-### Widget Configuration
-
-Each widget has its own configuration section under `"widgets"`:
-
-#### Focus Timer
-
-```json
-"focusTimer": {
-  "workPresets": [
-    { "label": "25m", "ms": 1500000 },
-    { "label": "50m", "ms": 3000000 }
-  ],
-  "breakPresets": [
-    { "label": "5m", "ms": 300000 },
-    { "label": "15m", "ms": 900000 }
-  ],
-  "logPath": "Productivity/Focus Logs"
-}
-```
-
-Focus session logs are automatically created as Markdown files with frontmatter, tables, and summary statistics.
-
-#### Quick Capture
-
-```json
-"quickCapture": {
-  "targetFolder": "Inbox",
-  "tag": "inbox/capture",
-  "voice": {
-    "enabled": true,
-    "lang": "en",
-    "whisperPath": "/opt/homebrew/bin/whisper-cli",
-    "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-base.en.bin"
-  }
-}
-```
-
-Captures create timestamped notes with the specified tag in the target folder. The optional `voice` section enables voice-to-text dictation (see [Voice Capture](#voice-capture) below).
-
-| Key | Default | Description |
-|---|---|---|
-| `targetFolder` | `"NoteLab"` | Vault folder where captured notes are saved |
-| `tag` | `"notelab/capture"` | Frontmatter tag applied to each note |
-| `voice.enabled` | `true` | Enable/disable the mic button |
-| `voice.lang` | `"en"` | Whisper language code (`en`, `uk`, `de`, `fr`, etc.) |
-| `voice.whisperPath` | Auto-detected | Full path to `whisper-cli` binary |
-| `voice.whisperModel` | `"/opt/homebrew/share/whisper-cpp/ggml-base.en.bin"` | Path to GGML model file |
-
-#### System Diagnostics
-
-```json
-"systemDiagnostics": {
-  "periodDays": 30,
-  "cacheDurationMs": 300000
-}
-```
-
-Analytics are computed from Claude Code session transcripts and cached for performance.
-
-#### JARVIS Voice Command
-
-```json
-"voiceCommand": {
-  "enabled": true,
-  "model": "sonnet",
-  "zoomMin": 0.92,
-  "zoomMax": 1.08,
-  "terminal": {
-    "title": "JARVIS OUTPUT",
-    "showProjectTag": true,
-    "showStatusBadge": true,
-    "showCopyButton": true,
-    "showCompletionLabel": true,
-    "completionLabel": "Process complete",
-    "showStatusLabels": true,
-    "showToolUseLabels": true,
-    "showCommand": false,
-    "codeHighlighting": { "enabled": true }
-  }
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `enabled` | `true` | Show/hide the voice command widget |
-| `mode` | `"local"` | Voice processing mode: `"local"` (on-device via whisper-cpp + Claude CLI) or `"remote"` (stream to companion server). Mobile uses `"remote"` automatically. |
-| `remoteTts` | `"local"` | When in remote mode, TTS handling: `"local"` (mobile device speaks) or `"server"` (Mac streams audio back) |
-| `model` | Claude default | Claude model alias (`"sonnet"`, `"opus"`, `"haiku"`) or full model ID. Applied on every invocation, including resumed sessions. Set to `null` or omit to use Claude Code's default. |
-| `zoomMin` | `0.92` | Minimum scale for the recording zoom-wave animation |
-| `zoomMax` | `1.08` | Maximum scale for the recording zoom-wave animation |
-| `terminal.title` | `"JARVIS OUTPUT"` | Text displayed in the terminal header bar |
-| `terminal.projectPath` | Vault path | Working directory for the `claude` child process. `~` is expanded automatically. |
-| `terminal.claudePath` | Auto-detected | Override path to `claude` binary. By default searches `~/.local/bin/`, `/usr/local/bin/`, `/opt/homebrew/bin/`. |
-| `terminal.showCommand` | `false` | Show/hide the CLI command prefix (`claude --print`, `claude --resume`) in the terminal echo line. When `false`, only `$ <your message>` is shown. |
-| `terminal.showProjectTag` | `true` | Show/hide the project name tag in the terminal header |
-| `terminal.showStatusBadge` | `true` | Show/hide the status badge (Running / Done / Error) in the terminal header |
-| `terminal.showCopyButton` | `true` | Show/hide the copy-to-clipboard button in the terminal header |
-| `terminal.showCompletionLabel` | `true` | Show/hide the `[Process complete]` label after each response |
-| `terminal.completionLabel` | `"Process complete"` | Custom text for the completion label |
-| `terminal.showStatusLabels` | `true` | Show/hide status labels (thinking, reading, writing) during streaming |
-| `terminal.showToolUseLabels` | `true` | Show/hide inline tool use indicators (e.g., `⚡ Read`, `⚡ Edit`) during streaming |
-
-The widget reuses the [Voice Capture](#voice-capture) prerequisites (whisper-cpp) for speech recognition and supports [Text-to-Speech](#text-to-speech) for voice responses.
-
-##### Personality Configuration
-
-Give JARVIS an Iron Man-inspired personality. Responses become concise, witty, and TTS-optimized.
-
-```json
-"personality": {
-  "userName": "sir",
-  "assistantName": "JARVIS",
-  "prompt": "You are {assistantName}, a highly capable AI assistant inspired by the J.A.R.V.I.S. system. Address the user as \"{userName}\".\n\nRules:\n- Be concise, precise, efficient. Short, direct answers.\n- Keep responses to 1-3 sentences. If the topic requires more, give the essential answer first, then ask if {userName} wants details.\n- Open with brief acknowledgments when natural (\"Right away, {userName}\", \"Certainly, {userName}\", \"Of course\"). Vary naturally.\n- Matter-of-fact with dry wit. Brief humor welcome; never forced.\n- For complex tasks, give a crisp status first (\"Running diagnostics now, {userName}\").\n- No filler phrases, caveats, or corporate language.\n- If you don't know something, say so directly.\n- Minimal markdown — responses are spoken aloud via TTS. Avoid code blocks, tables, and lists unless explicitly requested.\n- You are {assistantName}, not \"Claude\" or \"an AI assistant\". Never break character.\n- Optimize for audible clarity: short sentences, natural pauses at periods, no parenthetical asides."
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `personality.userName` | `"sir"` | How the assistant addresses the user. Use your name, a title, or any preferred form of address. |
-| `personality.assistantName` | `"JARVIS"` | The assistant's self-reference name. Change to `"FRIDAY"` or any custom name. |
-| `personality.prompt` | JARVIS preset | Full personality prompt text. Supports `{userName}` and `{assistantName}` placeholders which are substituted at runtime. Edit freely to customize the personality. Set to `null` to disable personality entirely — only your raw message is sent to Claude. |
-
-The personality prompt is injected via `--append-system-prompt` and is never visible in the terminal output. It composes with any existing `CLAUDE.md` instructions in the project directory.
-
-##### Interactive Mode
-
-Enable interactive Claude sessions where JARVIS can request tool permissions and ask clarifying questions during execution:
-
-```json
-"interactive": {
-  "enabled": true,
-  "interactivePermissions": true,
-  "autoApproveTools": ["Read", "Glob", "Grep", "Agent", "WebSearch", "WebFetch"],
-  "alwaysAskTools": ["Bash", "Write", "Edit"],
-  "permissionTimeout": 120000,
-  "questionTimeout": 120000,
-  "voiceResponseEnabled": true,
-  "batchQuestions": true
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `interactive.enabled` | `true` | Enable interactive mode (stream-json with bidirectional input pipe) |
-| `interactive.interactivePermissions` | `true` | When `true`, tools in `alwaysAskTools` trigger a permission dialog. When `false`, all tools are pre-approved via `--allowedTools`. |
-| `interactive.autoApproveTools` | `[...]` | Tools passed to `--allowedTools` — Claude uses these without asking |
-| `interactive.alwaysAskTools` | `["Bash", "Write", "Edit"]` | Tools that trigger a permission request dialog in the terminal panel. You can approve once, approve for the session, or deny. |
-| `interactive.permissionTimeout` | `120000` | Timeout (ms) for permission dialogs before auto-deny |
-| `interactive.questionTimeout` | `120000` | Timeout (ms) for `AskUserQuestion` responses |
-| `interactive.voiceResponseEnabled` | `true` | Allow answering questions by voice |
-| `interactive.batchQuestions` | `true` | Batch multiple permission requests into a single dialog |
-
-When a tool permission is requested, a styled dialog appears in the terminal panel with the tool name and input preview. Approved tools are temporarily added to `settings.local.json` and cleaned up when the session ends.
-
-##### Text-to-Speech Configuration
-
-```json
-"tts": {
-  "enabled": true,
-  "engine": "piper",
-  "say": { "voice": "Daniel", "rate": 160 },
-  "piper": {
-    "binaryPath": "/path/to/piper",
-    "modelPath": "~/.config/piper/en_US-joe-medium.onnx",
-    "lengthScale": null,
-    "noiseScale": 0.4,
-    "noiseWScale": 0.5,
-    "sentenceSilence": null,
-    "volume": null
-  }
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `tts.enabled` | `false` | Enable/disable text-to-speech voice responses |
-| `tts.engine` | `"say"` | Engine: `"piper"`, `"say"`, or `"speechSynthesis"` |
-| `tts.say.voice` | `"Samantha"` | macOS voice name (run `say -v ?` to list all) |
-| `tts.say.rate` | `185` | Words per minute for `say` engine |
-| `tts.piper.binaryPath` | — | Full path to piper binary (required for piper engine) |
-| `tts.piper.modelPath` | — | Path to ONNX voice model (`~` is expanded automatically) |
-| `tts.piper.lengthScale` | `null` | Speed: `<1.0` = faster, `>1.0` = slower. `null` uses model default |
-| `tts.piper.noiseScale` | `null` | Phoneme noise/variation (`0.0`–`1.0`). Lower = more robotic, higher = more expressive |
-| `tts.piper.noiseWScale` | `null` | Phoneme width noise (`0.0`–`1.0`). Controls duration variation |
-| `tts.piper.sentenceSilence` | `null` | Seconds of silence inserted between sentences |
-| `tts.piper.volume` | `null` | Output volume multiplier |
-
-Any piper parameter set to `null` is omitted from the command — the model's built-in default is used instead.
-
-#### Communication Link
-
-```json
-"communicationLink": {
-  "terminalApp": "Terminal",
-  "editorApp": "Cursor",
-  "terminalTitle": "claude \u2014 My Project",
-  "vaultPathDisplay": "~/my-vault"
-}
-```
-
-### Agent Registry
-
-Agent definitions live in `src/config/Jarvis-Registry.md`. See the file for full documentation on adding, editing, and configuring agents.
-
-Quick reference for required fields:
-
-| Field | Description |
-|---|---|
-| `name` | Unique identifier (used for robot avatar and status matching) |
-| `displayName` | Human-readable name on the card |
-| `model` | `opus`, `sonnet`, or `haiku` |
-| `color` | Hex color for card accent and robot |
-| `location` | `vault` or `global` |
-| `configPath` | Path to agent config file |
-| `description` | Short capability description |
-
-Optional: `skills` (list), `command` (string), `memoryDate` (YYYY-MM-DD).
-
-### Pricing
-
-Token cost estimation uses configurable per-million-token rates:
-
-```json
-"pricing": {
-  "opus": { "input": 15, "output": 75 },
-  "sonnet": { "input": 3, "output": 15 },
-  "haiku": { "input": 0.80, "output": 4 }
-}
-```
-
-Update these values when Anthropic changes pricing.
-
-### Network
-
-Settings for the companion server connection (mobile support):
-
-```json
-"network": {
-  "host": "your-mac.local",
-  "port": 7777,
-  "localPort": 7778,
-  "autoConnect": true,
-  "heartbeatInterval": 30000,
-  "reconnectMaxDelay": 30000,
-  "mobileTts": "server",
-  "audioSizeLimit": 10485760,
-  "connectionTimeout": 10000
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `host` | `"your-mac.local"` | Mac hostname for mobile connections |
-| `port` | `7777` | WSS port (mobile connects here) |
-| `localPort` | `7778` | WS port (desktop connects here, no TLS) |
-| `autoConnect` | `true` | Auto-connect on dashboard load |
-| `heartbeatInterval` | `30000` | Ping interval (ms) to detect dead connections |
-| `reconnectMaxDelay` | `30000` | Maximum reconnect backoff delay (ms) |
-| `mobileTts` | `"server"` | TTS mode: `"server"` (Mac streams audio) or `"local"` (mobile handles TTS) |
-| `audioSizeLimit` | `10485760` | Max audio upload size (10 MB) |
-| `connectionTimeout` | `10000` | Connection timeout (ms) |
-
-These values are overridden by `src/config/config.local.json` (gitignored) for sensitive values like auth tokens.
-
-### Language
-
-Multi-language speech recognition and TTS:
-
-```json
-"language": {
-  "stt": "auto",
-  "fallback": "en",
-  "piperModelsDir": "~/.config/piper",
-  "supported": {
-    "en": {
-      "label": "English",
-      "piper": { "lengthScale": 0.72, "sentenceSilence": 0.08 }
-    }
-  }
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `stt` | `"auto"` | Speech-to-text language: `"auto"` for auto-detection or an ISO 639-1 code (e.g., `"en"`, `"uk"`, `"de"`) |
-| `fallback` | `"en"` | Fallback language when auto-detection fails or detects an unsupported language |
-| `piperModelsDir` | `"~/.config/piper"` | Directory containing Piper ONNX voice models. Models are auto-discovered by language from filenames (e.g., `en_US-joe-medium.onnx`) |
-| `supported` | `{ "en": ... }` | Map of supported languages. Each entry can override Piper parameters (`lengthScale`, `sentenceSilence`, etc.) per language |
-
-To add a new language, download a Piper model to `piperModelsDir` and add its language code to the `supported` map. The TTS service auto-discovers models by parsing ONNX filenames.
-
-> **Note:** Auto-detection requires a multi-language whisper model (e.g., `ggml-small.bin`). English-only models (`.en.bin`) disable auto-detection automatically.
-
-### Companion Server
-
-Settings for the Mac companion server process (see [Mobile Support](#mobile-support)):
-
-```json
-"companion": {
-  "ffmpegPath": "/opt/homebrew/bin/ffmpeg",
-  "whisperPath": "/opt/homebrew/bin/whisper-cli",
-  "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-small.bin",
-  "whisperLang": "auto",
-  "claudePath": null,
-  "maxConnections": 2,
-  "rateLimitPerMinute": 10,
-  "idleTimeoutMs": 300000
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `ffmpegPath` | `/opt/homebrew/bin/ffmpeg` | Path to ffmpeg binary (converts mobile audio to WAV) |
-| `whisperPath` | `/opt/homebrew/bin/whisper-cli` | Path to whisper-cli binary |
-| `whisperModel` | (ggml-small.bin) | Whisper model file path |
-| `whisperLang` | `"auto"` | Language for server-side transcription |
-| `claudePath` | `null` (auto-detect) | Path to Claude CLI binary |
-| `maxConnections` | `2` | Maximum concurrent WebSocket connections |
-| `rateLimitPerMinute` | `10` | Max connection attempts per minute per IP |
-| `idleTimeoutMs` | `300000` | Idle connection timeout (5 minutes) |
-
-### Performance
-
-Tuning options for polling intervals and caching:
-
-```json
-"performance": {
-  "liveSessionsIntervalMs": 3000,
-  "processCheckCacheMs": 10000,
-  "projectDiscoveryCacheMs": 300000
-}
-```
-
-| Key | Default | Description |
-|---|---|---|
-| `liveSessionsIntervalMs` | `3000` | Live session polling interval (ms) |
-| `processCheckCacheMs` | `10000` | How long to cache the `pgrep` process check result |
-| `projectDiscoveryCacheMs` | `300000` | Auto-scan project discovery cache duration (5 minutes) |
-
-## Widgets
-
-### Live Session Monitor
-
-Monitors Claude Code JSONL transcript files in real-time. Detects:
-- Active sessions across multiple projects
-- Current tool being used (Read, Edit, Bash, Agent, etc.)
-- Model in use (Opus, Sonnet, Haiku)
-- Active subagents with descriptions and types
-- Agent registry matches (highlights which registered agent is active)
-
-Polls every 3 seconds. Shows elapsed time for each session.
-
-### Agent Cards
-
-Renders registered agents as interactive cards with:
-- **Unique robot avatars** — automatically generated based on agent name, with three eye styles (visor, lens, dual-dot)
-- **Live status** — switches between "Available" and "Working" based on session detection
-- **Active animations** — breathing effect, orbiting glow ring, pulsing dot when working
-- **Click to open** — opens the agent's config file in your editor
-- **Skills pills** — visual list of registered skills
-- **Memory freshness** — shows when agent memory was last updated
-
-### Activity Analytics
-
-Three visualization panels:
-1. **Activity Heatmap** — GitHub-style 30-day grid showing message volume per day
-2. **Peak Hours** — 24-bar chart showing activity distribution across hours
-3. **Model Usage** — Horizontal bar chart with percentage, session count, and cost per model
-
-### JARVIS Voice Command
-
-An arc reactor-inspired circular button that brings the Iron Man J.A.R.V.I.S. experience to your dashboard. Speak a command, and Claude Code responds directly inside Obsidian — streaming token-by-token into a built-in terminal panel. No app-switching required.
-
-<p align="center">
-  <img src="assets/jarvis-realtime-testing.gif" alt="JARVIS Voice Command Demo" width="100%" />
-</p>
-
-**How it works:**
-1. Tap (or long-press) the circular button to start recording
-2. Speak your command to JARVIS
-3. Tap again (or release) to stop recording
-4. Audio is transcribed offline via whisper-cpp
-5. A terminal panel slides open below the arc reactor
-6. `claude -p --input-format stream-json --output-format stream-json` spawns as a child process inside Obsidian's Electron runtime
-7. Response streams in real-time, token-by-token, with syntax-highlighted code blocks
-
-**Integrated terminal panel:**
-- Styled to match the Communication Link widget (monospace font, dark panel, cyan accents)
-- **Header bar** with close button, status badge (Running / Done / Error), and copy-to-clipboard button
-- **Scrollable output** with auto-scroll during streaming
-- **Command echo** — shows `$ <your message>` (or the full CLI command when `showCommand` is enabled)
-- Slide-in/slide-out animations for smooth open/close transitions
-
-**Interaction modes:**
-
-| Action | Behavior |
-|---|---|
-| **Tap** | Starts recording. Tap again to stop, transcribe, and stream. |
-| **Long-press** (hold > 300ms) | Starts recording on hold. Release to stop, transcribe, and stream. |
-| **Escape** (while recording) | Cancels recording without launching. |
-| **Escape** (while streaming) | Kills the Claude process and closes the panel. |
-
-**Visual states:**
-
-| State | Core | Ring Animation | Status Text |
-|---|---|---|---|
-| Idle | "J" letter with breathing animation | Slow rotation (12s), subtle glow | "Tap to speak to JARVIS" |
-| Recording | MM:SS timer only | Fast rotation (3s), synced breathing + zoom-wave | "Recording — Tap to Send" |
-| Transcribing | Hourglass icon | Moderate rotation (6s) | "Processing Voice..." |
-| Launching | Rocket icon | Brief burst | "Launching Claude..." |
-| Streaming | Pulsing dot | Active rotation | "Claude is responding..." |
-| Done (no session) | "J" letter restored | Settled | "Tap to speak to JARVIS" |
-| Done (has session) | "J" letter restored | Settled | "Tap to continue the conversation" |
-| Error | Red X | Settled | Error message |
-
-**Technical details:**
-- Spawns `claude -p --input-format stream-json --output-format stream-json --replay-user-messages --include-partial-messages` as a child process via Node.js `child_process.spawn()`
-- Parses newline-delimited JSON stream, extracting `content_block_delta` events for real-time text display
-- Falls back to `result` event if streaming deltas are missed
-- Builds `--allowedTools` from interactive config, merging auto-approved and session-approved tools
-- Supports `--model` flag for configurable model selection (sonnet, opus, haiku, or full model ID)
-- Markdown rendering with syntax highlighting for 20+ languages (Swift, Python, JavaScript, Rust, Go, Ruby, Kotlin, SQL, and more)
-- Global streaming state (`window.__jarvisStreamState`) survives Dataview re-renders while a Claude process is running
-- Auto-detects `claude` binary path (`~/.local/bin/`, `/usr/local/bin/`, `/opt/homebrew/bin/`) — configurable via `terminal.claudePath`
-- Strips `CLAUDECODE` env var from child process to prevent nested session errors
-- Keeps stdin open for interactive mode (permission responses, question answers) or closes for print mode
-- Process cleanup on widget destroy, escape key, or panel close
-
-**Multi-session management:**
-
-JARVIS supports multiple concurrent sessions across different projects, managed through a tab bar at the bottom of the terminal panel:
+| [Setup Guide](docs/setup/README.md) | Installation for all platforms |
+| [Architecture](docs/architecture/README.md) | Module system, ctx object, patterns |
+| [API Reference](docs/api/README.md) | WebSocket protocol, Tauri commands |
+| [Security](docs/security/README.md) | TLS, tokens, rate limiting |
+| [Certificates](docs/certificates/README.md) | Certificate creation & iOS installation |
+| [Companion Server](docs/server/README.md) | Server setup & LaunchAgent |
+| [Customization](docs/customizations/README.md) | Every config key documented |
+| [TTS](docs/text-to-speech/README.md) / [STT](docs/speech-to-text/README.md) / [Voice Models](docs/voice-models/README.md) | Voice system |
+| [Widgets](docs/widgets/README.md) | All 13 widgets + creating custom ones |
+| [Troubleshooting](docs/troubleshooting/README.md) | Solutions by category |
+
+## Project Structure
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ ● 📓 MyLifeVault │ ● 🍎 CaloriesTracker │ ● 📦 CoreKit │ + │
-└─────────────────────────────────────────────────────────┘
+src/                    Shared source (core, services, widgets)
+shared/                 Cross-platform loader and adapters
+companion/              WebSocket server for mobile support
+ios/                    iOS SwiftUI app
+macos/                  macOS Tauri 2.0 app
+docs/                   Documentation
 ```
 
-- **Tab bar** — Each session appears as a tab with the project icon, label, and a colored dot. The active tab is highlighted with the session's color.
-- **"+" button** — Opens a project picker to create a new session for any tracked project. Supports up to 10 concurrent sessions (oldest idle sessions are auto-pruned).
-- **Session color variation** — Multiple sessions for the same project get distinct but related colors (hue-shifted variants of the project's base color).
-- **Editable tab names** — Double-click a tab label to rename it inline. Press Enter to save, Escape to cancel. Empty names revert to the default project label.
-- **Drag & drop reordering** — Drag tabs to rearrange their order. The new order is persisted immediately.
-- **Close button** — Each tab has an `✕` that closes that session. Closing the last session creates a fresh default session.
-- **Background notifications** — When a non-active session finishes streaming, its tab shows a pulsing notification badge.
-- **Project selector** — A dropdown above the arc reactor lets you pick the initial project. It auto-hides once sessions exist (the "+" button handles new sessions from then on).
-
-**Session continuity:**
-
-- The session ID is automatically detected from Claude Code's JSONL transcript files
-- Tap JARVIS again to continue the conversation — `--resume <session-id>` is passed automatically
-- Multi-turn responses are separated by dashed dividers in the terminal panel
-- Closing the terminal panel with `[✕]` preserves all sessions — you can resume later
-
-**State persistence:**
-
-All session state is stored in `~/.claude/jarvis-sessions.json` and survives navigation and Obsidian restarts. When you switch to another note and return, the terminal panel restores with your full conversation history, tab bar, and session state intact.
-
-**Features:**
-- Stylized "J" letter icon with monospace font and cyan glow
-- Concentric animated rings with orbiting particle dots
-- Synchronized breathing and zoom-wave animations during recording (configurable via `zoomMin`/`zoomMax`)
-- Ripple effect on recording start
-- Real-time token-by-token streaming — responses appear as they're generated
-- Multi-session management with tab bar, project picker, drag & drop reordering, and editable tab names
-- Multi-turn session continuity with automatic `--resume` detection
-- Persistent state across navigation and Obsidian restarts (stored in `~/.claude/jarvis-sessions.json`)
-- Up to 10 concurrent sessions with auto-pruning of oldest idle sessions
-- Session color variation — multiple sessions for the same project get distinct hue-shifted colors
-- Copy full conversation to clipboard with one click
-- Configurable terminal UI — toggle project tag, status badge, copy button, completion label, status labels, and tool use labels via config flags
-- Configurable command echo visibility (`showCommand`)
-- Escape key cancels recording or kills an active stream
-- Transcribed text preview before streaming begins
-- Text input field for typed commands alongside voice
-- Syntax-highlighted code blocks with copy-to-clipboard buttons (20+ languages)
-- Interactive tool permission dialogs with approve/deny/always-approve options
-- Configurable model selection via `model` config key
-- Multi-language support: automatic language detection with per-language TTS voice selection
-- Reuses Voice Capture prerequisites (whisper-cpp) — see [Voice Capture](#voice-capture) below
-- Graceful disabled state when whisper-cpp is not installed
-
-**Text-to-Speech (JARVIS Voice):**
-
-Claude's responses are spoken aloud sentence-by-sentence as they stream — creating a conversational experience where JARVIS reads back the response in real-time.
-
-- **Sentence-boundary streaming** — Extracts complete sentences (ending with `.`, `!`, or `?`) from Claude's token stream and enqueues them for playback as they arrive
-- **Markdown stripping** — Code blocks, bold, links, headers, and lists are cleaned before speaking for natural-sounding output
-- **Three engine options:**
-  - **Piper** (recommended) — Neural TTS with high-quality ONNX voice models. Natural, expressive speech. See [Text-to-Speech](#text-to-speech) for setup.
-  - **macOS `say`** — Built-in system voices, zero setup. Good for quick testing.
-  - **Browser speechSynthesis** — Web Speech API, works everywhere but lower quality.
-- **SVG mute toggle** — Clean speaker icon in the terminal header bar. Click to mute/unmute. Pulses with a breathing animation while JARVIS is speaking.
-- **Persistent mute state** — Your mute preference is saved to `jarvis-tts-prefs.json` and survives note reloads, Obsidian restarts, and is independent of terminal sessions.
-- **Sequential queue** — Sentences are spoken one at a time in order. If you close the terminal or mute, playback stops immediately.
-
-### Focus Timer
-
-Full Pomodoro implementation:
-- Circular progress ring with conic gradient
-- Configurable work/break duration presets
-- Start, Pause, Resume, Reset controls
-- Session counter (resets daily)
-- Automatic work/break switching on completion
-- System notifications (requires browser notification permission)
-- Vault logging — creates/updates daily focus log files with tables and statistics
-
-## Voice Capture
-
-The Quick Capture widget supports voice-to-text dictation using [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for fully offline speech recognition. Audio is recorded via the Web Audio API (MediaRecorder) inside Obsidian, resampled to 16kHz mono WAV, and transcribed locally — no data leaves your machine.
-
-### Prerequisites
-
-1. **Install whisper.cpp** via Homebrew:
-
-   ```bash
-   brew install whisper-cpp
-   ```
-
-   This installs the `whisper-cli` binary; you will download a model in the next step.
-
-2. **Download model**:
-
-   ```bash
-   # Available models: tiny, base, small, medium, large-v3
-   # Add .en suffix for English-only (faster): ggml-base.en.bin, ggml-small.en.bin
-   curl -L -o /opt/homebrew/share/whisper-cpp/ggml-small.bin \
-     https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin
-   ```
-
-   Then update `config.json`:
-
-   ```json
-   "voice": {
-     "whisperModel": "/opt/homebrew/share/whisper-cpp/ggml-small.bin",
-     "lang": "en"
-   }
-   ```
-
-3. **Grant Microphone permission** to Obsidian:
-
-   - macOS: System Settings > Privacy & Security > Microphone > enable **Obsidian**
-   - The first time you click the mic button, macOS will prompt for permission
-
-### Usage
-
-The mic button appears next to the Capture button when whisper-cpp is detected.
-
-| Action | Behavior |
-|---|---|
-| **Tap** mic button | Starts recording. Tap again to stop and transcribe. |
-| **Long-press** mic button (hold > 300ms) | Starts recording immediately on hold. Release to stop and transcribe. |
-| **Tap while recording** | Stops recording and begins transcription. |
-
-Transcribed text is appended to the text area. You can combine typing and voice — dictate, edit, dictate more, then click Capture.
-
-### Visual States
-
-| State | Mic Button |
-|---|---|
-| Idle | Cyan mic icon, subtle border |
-| Recording | Pulsing cyan glow animation, stop icon |
-| Transcribing | Breathing animation, hourglass icon |
-
-### Troubleshooting
-
-| Issue | Solution |
-|---|---|
-| Mic button not visible | Verify `whisper-cli` exists: `ls /opt/homebrew/bin/whisper-cli` and model exists at configured path |
-| "Recording failed" error | Check System Settings > Privacy & Security > Microphone > Obsidian is enabled |
-| Empty transcription | Recording may be too short. Speak for at least 1-2 seconds. |
-| Wrong language | Set `voice.lang` in config to the correct [ISO 639-1 code](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) |
-| Slow first transcription | Normal — whisper-cpp loads the model on first run. Subsequent runs are faster. |
-| Custom whisper-cli path | Set `voice.whisperPath` in config to the full binary path |
-
-## Text-to-Speech
-
-The JARVIS Voice Command widget can speak Claude's responses aloud using [Piper](https://github.com/rhasspy/piper) — a fast, local neural text-to-speech engine with high-quality voice models. No data leaves your machine.
-
-### Prerequisites
-
-1. **Install Piper** via pip:
-
-   ```sh
-   pipx --global install piper-tts --include-deps
-   ```
-
-   or
-   
-   ```bash
-   pip3 install piper-tts
-   ```
-
-   By default, `piper-tts` does not include the `pathvalidate` library. If you see the error `ModuleNotFoundError: No module named 'pathvalidate'`, run the following:
-
-   - **If you installed via `pipx` (recommended):**
-
-      ```sh
-      pipx inject piper-tts pathvalidate
-      ```
-   - **If you installed via `pip` / `pip3`:**
-
-      ```sh
-      pip3 install pathvalidate
-      ```
-
-   Verify the installation:
-
-   ```bash
-   piper --version
-   ```
-
-   > **Note:** Find the installed binary path with `which piper`. On macOS with Homebrew Python, it's typically `~/Library/Python/3.x/bin/piper`. Use this path for `tts.piper.binaryPath` in config.
-
-3. **Download a voice model** — each model requires two files (`.onnx` + `.onnx.json`):
-
-   ```bash
-   mkdir -p ~/.config/piper
-
-   # Joe (recommended) — clear, natural American male
-   curl -L -o ~/.config/piper/en_US-joe-medium.onnx \
-     "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/joe/medium/en_US-joe-medium.onnx"
-   curl -L -o ~/.config/piper/en_US-joe-medium.onnx.json \
-     "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/joe/medium/en_US-joe-medium.onnx.json"
-   ```
-
-4. **Test the voice** directly from the terminal:
-
-   ```bash
-   echo "Hello, I am JARVIS. How can I help you today?" | \
-     piper --model ~/.config/piper/en_US-joe-medium.onnx --output_file /tmp/test.wav && \
-     afplay /tmp/test.wav
-   ```
-
-5. **Configure** in `config.json`:
-
-   ```json
-   "tts": {
-     "enabled": true,
-     "engine": "piper",
-     "piper": {
-       "binaryPath": "/path/to/piper",
-       "modelPath": "~/.config/piper/en_US-joe-medium.onnx"
-     }
-   }
-   ```
-
-### Voice Models
-
-Browse all available voices at [Piper Voices on HuggingFace](https://huggingface.co/rhasspy/piper-voices/tree/main). Each language has multiple speakers in different quality levels (`low`, `medium`, `high`).
-
-#### Recommended Voices
-
-| Voice | Quality | Character | Download |
-|---|---|---|---|
-| **Joe** (en_US) | Medium | Clear, natural, balanced — best all-rounder | `en/en_US/joe/medium/` |
-| **John** (en_US) | Medium | Warm, slightly deeper tone | `en/en_US/john/medium/` |
-| **Bryce** (en_US) | Medium | Lighter, conversational | `en/en_US/bryce/medium/` |
-| **Alan** (en_GB) | Medium | British English | `en/en_GB/alan/medium/` |
-| **Danny** (en_US) | Low | Fast, smaller model | `en/en_US/danny/low/` |
-
-Download any voice with:
-
-```bash
-# Replace LANG/SPEAKER/QUALITY with your choice from the table above
-curl -L -o ~/.config/piper/VOICE_NAME.onnx \
-  "https://huggingface.co/rhasspy/piper-voices/resolve/main/LANG/SPEAKER/QUALITY/VOICE_NAME.onnx"
-curl -L -o ~/.config/piper/VOICE_NAME.onnx.json \
-  "https://huggingface.co/rhasspy/piper-voices/resolve/main/LANG/SPEAKER/QUALITY/VOICE_NAME.onnx.json"
-```
-
-Then update `modelPath` in your config to point to the new `.onnx` file.
-
-### Tuning Voice Parameters
-
-Fine-tune how the voice sounds using optional piper parameters in `config.json`. Set any parameter to `null` to use the model's built-in default:
-
-```json
-"piper": {
-  "binaryPath": "/path/to/piper",
-  "modelPath": "~/.config/piper/en_US-joe-medium.onnx",
-  "lengthScale": null,
-  "noiseScale": 0.4,
-  "noiseWScale": 0.5,
-  "sentenceSilence": null,
-  "volume": null
-}
-```
-
-| Parameter | Range | Effect |
-|---|---|---|
-| `lengthScale` | `0.5`–`2.0` | Speaking speed. `0.75` = 25% faster, `1.5` = 50% slower |
-| `noiseScale` | `0.0`–`1.0` | Phoneme variation. Lower = more robotic/consistent, higher = more expressive |
-| `noiseWScale` | `0.0`–`1.0` | Duration variation. Lower = metronomic timing, higher = natural rhythm |
-| `sentenceSilence` | `0.0`–`2.0` | Seconds of silence between sentences |
-| `volume` | `0.1`–`5.0` | Output volume multiplier |
-
-**Recommended starting point:** `noiseScale: 0.4`, `noiseWScale: 0.5` for a composed, AI-assistant-like tone.
-
-### Alternative Engines
-
-If you prefer zero-setup TTS, use one of the built-in alternatives:
-
-**macOS `say`** — Uses system voices. No installation required:
-
-```json
-"tts": {
-  "enabled": true,
-  "engine": "say",
-  "say": { "voice": "Daniel", "rate": 160 }
-}
-```
-
-Run `say -v ?` in Terminal to list all available voices.
-
-**Browser speechSynthesis** — Web Speech API, works on all platforms:
-
-```json
-"tts": {
-  "enabled": true,
-  "engine": "speechSynthesis"
-}
-```
-
-### Troubleshooting
-
-| Issue | Solution |
-|---|---|
-| No voice output | Check `tts.enabled` is `true` and the mute button is not muted (speaker icon should show sound waves) |
-| Falls back to `say` instead of piper | Verify `binaryPath` points to actual piper binary (`which piper`) and `modelPath` exists |
-| Piper binary not found | Run `pip3 install piper-tts` and check the install path with `which piper` |
-| Model file not found | Ensure both `.onnx` and `.onnx.json` files exist at the configured path |
-| Voice sounds robotic | Increase `noiseScale` and `noiseWScale` (e.g., `0.6` and `0.7`) |
-| Voice too slow/fast | Adjust `lengthScale` — lower is faster, higher is slower |
-| First sentence delayed | Normal — piper loads the ONNX model on first invocation. Subsequent sentences are faster. |
-| Mute state not persisting | Ensure the project session directory exists: `ls ~/.claude/projects/` |
-
-## Architecture
-
-### Module Loading
-
-DataviewJS cannot use `import/export`. Instead, each `.js` file is loaded as a function body:
-
-```javascript
-const code = fs.readFileSync("src/widgets/header.js", "utf8");
-const widgetFn = new Function("ctx", code);
-const element = widgetFn(ctx);
-```
-
-### Shared Context (`ctx`)
-
-All modules receive a shared `ctx` object — the single dependency injection point:
-
-```javascript
-ctx = {
-  // Core
-  el, T, config, container, dv, app,
-
-  // Layout
-  isNarrow, isMedium, isWide,
-
-  // Services
-  sessionParser, statsEngine, timerService, voiceService, ttsService,
-  networkClient,      // WebSocket client (remote mode only)
-  markdownRenderer,   // Syntax-highlighted markdown rendering
-
-  // Data
-  agents, agentNames, skillToAgent,
-
-  // Cross-widget communication
-  agentCardRefs,    // Map: agent name -> DOM refs
-  onStatsReady,     // Array: callbacks for async stats
-  intervals,        // Array: all setInterval IDs for cleanup
-  cleanups,         // Array: cleanup functions called on destroy
-  _paused,          // Boolean: true when dashboard tab is not visible
-  _jarvisStreaming,  // Boolean: true during active Claude streaming
-}
-```
-
-### SOLID Principles
-
-| Principle | Implementation |
-|---|---|
-| **Single Responsibility** | Each widget file handles exactly one dashboard section |
-| **Open/Closed** | New widgets added by creating a `.js` file and adding to layout — no existing code modified |
-| **Liskov Substitution** | All widgets follow the same contract: `(ctx) -> HTMLElement` |
-| **Interface Segregation** | Widgets only access the `ctx` properties they need |
-| **Dependency Inversion** | Widgets depend on `ctx` abstraction, not concrete implementations |
-
-### Creating Custom Widgets
-
-1. Create `src/widgets/my-widget.js`:
-
-```javascript
-// My Widget
-// Returns: HTMLElement
-
-const { el, T, config, isNarrow } = ctx;
-
-const section = el("div", {
-  background: T.panelBg,
-  border: `1px solid ${T.panelBorder}`,
-  borderRadius: "12px",
-  padding: isNarrow ? "16px 14px" : "20px 24px",
-});
-
-section.appendChild(el("div", {
-  fontSize: "14px", color: T.text,
-}, "Hello from my widget!"));
-
-return section;
-```
-
-2. Add to layout in `config.json`:
-
-```json
-"layout": [
-  { "type": "header" },
-  { "type": "my-widget" },
-  { "type": "footer" }
-]
-```
-
-3. Register in `Jarvis Dashboard.md` widget map (inside the DataviewJS block):
-
-```javascript
-const WIDGET_MAP = {
-  // ... existing widgets ...
-  "my-widget": "widgets/my-widget.js",
-};
-```
-
-## Platform Support
-
-### Primary Platform
-
-**Obsidian** (macOS, Linux, Windows) with the DataviewJS plugin. This is the primary and fully supported platform.
-
-### Mobile Platform
-
-**Obsidian Mobile** (iOS, iPadOS) is supported via the companion server architecture:
-
-- A Mac running the companion server handles all heavy processing (whisper-cpp, Claude CLI, Piper TTS)
-- The mobile device streams audio and receives responses over secure WebSocket (WSS)
-- Requires the companion server on the same WiFi network or reachable via Tailscale VPN
-- See [Mobile Support](#mobile-support) for setup instructions
-
-| Feature | Desktop (Electron) | Mobile (WKWebView) |
-|---|---|---|
-| Session monitoring | Direct filesystem access | Not available |
-| Voice commands | Local whisper-cpp + Claude CLI | Companion server over WSS |
-| TTS | Local Piper/say | Server-streamed or local speechSynthesis |
-| Agent cards | Full support | Not available |
-| Analytics | Full support | Not available |
-
-### Obsidian-Specific APIs Used
-
-| API | Used By | Purpose |
-|---|---|---|
-| `dv.pages()` | Recent Activity, Quick Capture, Footer | Query vault content |
-| `dv.page()` | Orchestrator | Load agent registry |
-| `app.workspace.openLinkText()` | Mission Control, Recent Activity | In-vault navigation |
-| `new Notice()` | Multiple widgets | Toast notifications |
-| `app.vault.adapter.basePath` | Multiple widgets | Vault root path |
-
-### macOS-Specific Features
-
-| Feature | API | Alternative for Other OS |
-|---|---|---|
-| Open Apps | `open -a` | Linux: `xdg-open`; Windows: `start` |
-| Open URLs | `open` | Linux: `xdg-open`; Windows: `start` |
-
-### Potential Adaptations
-
-The modular architecture makes it possible to adapt the dashboard for other platforms:
-
-- **LogSeq** — Would require a custom JS renderer plugin; core logic is reusable
-- **VS Code** — Could be implemented as a webview extension using the same widget modules
-- **Standalone HTML** — Would need a Node.js backend for filesystem access; all DOM rendering code is portable
-- **Electron App** — Most direct port; all code uses standard DOM APIs + Node.js
-
-These adaptations would require community contributions and are not currently maintained.
-
-## File Structure
-
-```
-jarvis_dashboard/
-  README.md                           You are here
-  LICENSE                             MIT License
-  Jarvis Dashboard.md                 Main entry point (open this in Obsidian)
-  Jarvis Dashboard Mobile.md          Mobile entry point (open on iOS/iPadOS)
-  src/
-    config/
-      config.json                     All configurable values
-      config.local.example.json       Template for local overrides (host, token)
-      Jarvis-Registry.md              Agent definitions
-    core/
-      theme.js                        Theme colors & responsive sizing
-      styles.js                       CSS animations (25 keyframes) + code block styles
-      helpers.js                      Utilities: el(), formatters
-      markdown-renderer.js            Syntax highlighting for 20+ languages
-    services/
-      session-parser.js               JSONL transcript parsing (with mtime caching)
-      session-manager.js              Multi-session CRUD, persistence, project switching
-      stats-engine.js                 30-day analytics engine
-      timer-service.js                Focus timer persistence
-      tts-service.js                  Multi-language TTS (Piper, say, speechSynthesis)
-      voice-service.js                Voice recording & whisper-cpp transcription
-      network-client.js               WebSocket client for companion server
-    widgets/
-      header.js                       Title, clock, status
-      live-sessions.js                Real-time session monitor (hash-based diffing)
-      system-diagnostics.js           Stats cards
-      agent-cards.js                  Robot avatars & agent grid
-      activity-analytics.js           Heatmap, charts
-      jarvis-voice-command.js         Arc reactor voice command with multi-session & interactive mode
-      jarvis-voice-command-mobile.js  Mobile voice command (companion server)
-      communication-link.js           Terminal widget
-      focus-timer.js                  Pomodoro timer
-      quick-capture.js                Note capture with voice dictation
-      quick-launch.js                 Bookmark grid (grouped or flat)
-      mission-control.js              Navigation hub
-      recent-activity.js              Recent files feed
-      footer.js                       Summary footer
-  companion/
-    README.md                         Companion server setup guide
-    server.js                         WebSocket server (WSS + WS)
-    package.json                      npm manifest
-    setup.sh                          Automated provisioning script
-    com.jarvis.companion.plist        macOS LaunchAgent for auto-start
-    modules/
-      audio.js                        Audio session management
-      auth.js                         Token auth & rate limiting
-      claude-runner.js                Claude CLI execution
-      protocol.js                     WebSocket message types
-      transcriber.js                  ffmpeg + whisper-cpp pipeline
-      tts.js                          Server-side Piper TTS
-  assets/
-    banner.svg                        README banner
-    widgets/                          Widget screenshots (user-provided)
-```
-
-## Mobile Support
-
-JARVIS works on iPhone and iPad via a companion server architecture. Your Mac handles all heavy processing (transcription, Claude CLI, TTS) while the mobile device streams audio and displays results.
-
-### Architecture
-
-```
-iPhone/iPad                    Mac (same network)
-┌──────────────┐    WSS    ┌─────────────────────┐
-│ Obsidian     │◄────────►│ Companion Server     │
-│ Mobile       │  audio/  │  ├─ whisper-cpp      │
-│              │  results │  ├─ claude CLI        │
-│ Voice Widget │          │  └─ piper TTS        │
-└──────────────┘          └─────────────────────┘
-```
-
-### Setup
-
-1. **Set up the companion server** on your Mac — see [`companion/README.md`](companion/README.md) for full instructions:
-   ```bash
-   cd companion && bash setup.sh && npm start
-   ```
-
-2. **Install the CA certificate** on your iOS device (one-time):
-   - AirDrop `companion/certs/jarvis-ca.pem` to your iPhone
-   - Settings > General > VPN & Device Management > Install
-   - Settings > General > About > Certificate Trust Settings > Enable
-
-3. **Configure** `src/config/config.local.json` with your Mac hostname and auth token (generated by `setup.sh`):
-   ```json
-   {
-     "network": {
-       "host": "your-mac.local",
-       "token": "YOUR_64_CHAR_HEX_TOKEN_FROM_SETUP"
-     }
-   }
-   ```
-
-4. **Open** `Jarvis Dashboard Mobile.md` in Obsidian Mobile
-
-For Tailscale VPN support, remote access configuration, and troubleshooting, see [`companion/README.md`](companion/README.md).
+[Full annotated tree](docs/architecture/project-structure.md)
 
 ## Contributing
 
-Contributions are welcome! Here are some areas where help is appreciated:
-
-- **New widgets** — Follow the widget contract (`ctx -> HTMLElement`) and submit a PR
-- **Cross-platform support** — Adapt launch commands for Linux/Windows
-- **Themes** — Create and share alternative color schemes
-- **Documentation** — Improve setup guides, add screenshots, record demos
-
-### Development Workflow
-
-1. Fork and clone the repository into an Obsidian vault
-2. Make changes to widget/service files
-3. Re-open `Jarvis Dashboard.md` in Obsidian to test
-4. Submit a pull request with a description of your changes
+1. Fork the repository
+2. Create a feature branch
+3. Follow the [module contract](docs/architecture/README.md#module-contract) — no import/export, all state via `ctx`
+4. Test in at least one platform (Obsidian is easiest)
+5. Submit a pull request
 
 ## License
 
-[MIT](LICENSE) - Andrew Kochulab
+MIT

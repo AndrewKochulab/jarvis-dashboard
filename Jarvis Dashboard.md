@@ -29,29 +29,30 @@ const dashboardDir = nodePath.dirname(nodePath.join(vaultBase, currentFilePath))
 const srcDir = nodePath.join(dashboardDir, "src");
 
 // ── Module loader ──
+const _AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 function loadModule(relativePath) {
   const fullPath = nodePath.join(srcDir, relativePath);
   const code = nodeFs.readFileSync(fullPath, "utf8");
-  return new Function("ctx", code);
+  return new _AsyncFunction("ctx", code);
 }
 
 // ── Load config ──
 const config = JSON.parse(nodeFs.readFileSync(nodePath.join(srcDir, "config", "config.json"), "utf8"));
 
 // ── Load core: theme ──
-const themeResult = loadModule("core/theme.js")({ container, config });
+const themeResult = await loadModule("core/theme.js")({ container, config });
 const { T, isNarrow, isMedium, isWide, CARD_PAD, FONT_SM, leafEl } = themeResult;
 
 // ── Load core: styles ──
-const styleEl = loadModule("core/styles.js")({ T, config });
+const styleEl = await loadModule("core/styles.js")({ T, config });
 container.appendChild(styleEl);
 
 // ── Load core: helpers ──
-const helpers = loadModule("core/helpers.js")({ T });
-const { el, fmtTokens, fmtCost, formatModel, describeAction, getModelFamily } = helpers;
+const helpers = await loadModule("core/helpers.js")({ T, isNarrow });
+const { el, fmtTokens, fmtCost, formatModel, describeAction, getModelFamily, addHoverEffect, createSectionTitle } = helpers;
 
 // ── Load core: markdown renderer ──
-const markdownRenderer = loadModule("core/markdown-renderer.js")({ el, T, config });
+const markdownRenderer = await loadModule("core/markdown-renderer.js")({ el, T, config });
 
 // ── Load registry ──
 const registryPath = config.widgets?.agentCards?.registryPath || "src/config/Jarvis-Registry";
@@ -75,7 +76,7 @@ const ctx = {
   el, T, config, container, dv,
   isNarrow, isMedium, isWide, leafEl,
   nodeFs, nodePath, CARD_PAD, FONT_SM,
-  fmtTokens, fmtCost, formatModel, describeAction, getModelFamily,
+  fmtTokens, fmtCost, formatModel, describeAction, getModelFamily, addHoverEffect, createSectionTitle,
   markdownRenderer,
   agents, agentNames, skillToAgent,
   agentCardRefs: new Map(),
@@ -83,7 +84,12 @@ const ctx = {
   intervals: [],
   cleanups: [],
   _paused: false,
-  _srcDir: srcDir,
+  _srcDir: srcDir + "/",
+  _adapter: {
+    readFile(path) { return nodeFs.readFileSync(path, "utf8"); },
+    readFileAsync(path) { return nodeFs.readFileSync(path, "utf8"); },
+    vaultBasePath() { return vaultBase; },
+  },
   // Performance
   perf,
   animationsEnabled,
@@ -95,15 +101,16 @@ const ctx = {
 };
 
 // ── Load services ──
-ctx.sessionParser = loadModule("services/session-parser.js")(ctx);
+ctx.sessionParser = await loadModule("services/session-parser.js")(ctx);
 ctx.cleanups.push(() => { if (ctx.sessionParser.cleanup) ctx.sessionParser.cleanup(); });
-ctx.statsEngine = loadModule("services/stats-engine.js")(ctx);
-ctx.timerService = loadModule("services/timer-service.js")(ctx);
-ctx.voiceService = loadModule("services/voice-service.js")(ctx);
+ctx.statsEngine = await loadModule("services/stats-engine.js")(ctx);
+ctx.timerService = await loadModule("services/timer-service.js")(ctx);
+ctx.voiceService = await loadModule("services/voice-service.js")(ctx);
 ctx.cleanups.push(() => ctx.voiceService.cleanup());
-ctx.ttsService = loadModule("services/tts-service.js")(ctx);
+ctx.ttsService = await loadModule("services/tts-service.js")(ctx);
 ctx.cleanups.push(() => ctx.ttsService.cleanup());
-ctx.sessionManager = loadModule("services/session-manager.js")(ctx);
+ctx._sessionManagerCore = await loadModule("services/session-manager-core.js")(ctx);
+ctx.sessionManager = await loadModule("services/session-manager.js")(ctx);
 ctx.cleanups.push(() => ctx.sessionManager.cleanup());
 
 // ── Load network client for remote voice mode ──
@@ -126,7 +133,7 @@ if (config.widgets?.voiceCommand?.mode === "remote") {
     Object.assign(config, deepMerge(config, localConfig));
   } catch {}
   ctx._localConfig = localConfig;
-  ctx.networkClient = loadModule("services/network-client.js")(ctx);
+  ctx.networkClient = await loadModule("services/network-client.js")(ctx);
   ctx.cleanups.push(() => ctx.networkClient.cleanup());
 }
 
@@ -157,19 +164,19 @@ if (config.dashboard?.showScanLine !== false) {
 
 // ── Widget map ──
 const WIDGET_MAP = {
-  "header": "widgets/header.js",
-  "live-sessions": "widgets/live-sessions.js",
-  "system-diagnostics": "widgets/system-diagnostics.js",
-  "agent-cards": "widgets/agent-cards.js",
-  "activity-analytics": "widgets/activity-analytics.js",
-  "communication-link": "widgets/communication-link.js",
-  "focus-timer": "widgets/focus-timer.js",
-  "quick-capture": "widgets/quick-capture.js",
-  "quick-launch": "widgets/quick-launch.js",
-  "mission-control": "widgets/mission-control.js",
-  "recent-activity": "widgets/recent-activity.js",
-  "jarvis-voice-command": "widgets/jarvis-voice-command.js",
-  "footer": "widgets/footer.js",
+  "header":                "widgets/header/index.js",
+  "live-sessions":         "widgets/live-sessions/index.js",
+  "system-diagnostics":    "widgets/system-diagnostics/index.js",
+  "agent-cards":           "widgets/agent-cards/index.js",
+  "activity-analytics":    "widgets/activity-analytics/index.js",
+  "communication-link":    "widgets/communication-link/index.js",
+  "focus-timer":           "widgets/focus-timer/index.js",
+  "quick-capture":         "widgets/quick-capture/index.js",
+  "quick-launch":          "widgets/quick-launch/index.js",
+  "mission-control":       "widgets/mission-control/index.js",
+  "recent-activity":       "widgets/recent-activity/index.js",
+  "jarvis-voice-command":  "widgets/voice-command/index.js",
+  "footer":                "widgets/footer/index.js",
 };
 
 // ── Widgets that benefit from content-visibility: auto (below the fold) ──
@@ -207,7 +214,7 @@ for (const entry of layout) {
     });
     for (const widgetType of entry.widgets) {
       if (WIDGET_MAP[widgetType]) {
-        const widget = loadModule(WIDGET_MAP[widgetType])(ctx);
+        const widget = await loadModule(WIDGET_MAP[widgetType])(ctx);
         if (widget.style) {
           widget.style.marginBottom = "0";
           widget.style.contain = "layout style";
@@ -221,7 +228,7 @@ for (const entry of layout) {
     wrapper.appendChild(row);
     gridRefs.push({ el: row, columns: entry.columns || 2 });
   } else if (WIDGET_MAP[entry.type]) {
-    const widget = loadModule(WIDGET_MAP[entry.type])(ctx);
+    const widget = await loadModule(WIDGET_MAP[entry.type])(ctx);
     if (widget.style) {
       widget.style.contain = "layout style";
       if (DEFERRED_WIDGETS.has(entry.type)) {

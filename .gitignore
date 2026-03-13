@@ -9,5 +9,21 @@ companion/certs/
 companion/.env
 companion/node_modules/
 
-# Local config (contains auth token)
+# Personal config (user overrides, created from *.example.json templates)
+src/config/config.json
+
+# Local config (network credentials — host, token)
 src/config/config.local.json
+
+# Tauri (macOS app)
+macos/src-tauri/target/
+macos/node_modules/
+macos/web/src
+macos/web/shared
+
+# Xcode (iOS app)
+ios/build/
+ios/*.xcworkspace/xcuserdata/
+ios/DerivedData/
+ios/web/src
+ios/web/shared

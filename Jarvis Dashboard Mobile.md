@@ -21,10 +21,11 @@ const dashboardFolder = currentFilePath.replace(/\/[^/]+$/, "");
 const srcPrefix = dashboardFolder + "/src/";
 
 // ── Async module loader (works on both mobile and desktop) ──
+const _AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 async function loadModule(relativePath) {
   const filePath = srcPrefix + relativePath;
   const code = await app.vault.adapter.read(filePath);
-  return new Function("ctx", code);
+  return new _AsyncFunction("ctx", code);
 }
 
 // ── Load config ──
@@ -54,16 +55,19 @@ try {
 }
 
 // ── Load core: theme ──
-const themeResult = (await loadModule("core/theme.js"))({ container, config });
+const themeResult = await (await loadModule("core/theme.js"))({ container, config });
 const { T, isNarrow, isMedium, isWide, CARD_PAD, FONT_SM, leafEl } = themeResult;
 
 // ── Load core: styles ──
-const styleEl = (await loadModule("core/styles.js"))({ T, config });
+const styleEl = await (await loadModule("core/styles.js"))({ T, config });
 container.appendChild(styleEl);
 
 // ── Load core: helpers ──
-const helpers = (await loadModule("core/helpers.js"))({ T });
+const helpers = await (await loadModule("core/helpers.js"))({ T });
 const { el } = helpers;
+
+// ── Load markdown renderer ──
+const markdownRenderer = await (await loadModule("core/markdown-renderer.js"))({ el, T, config });
 
 // ── Build shared context ──
 const ctx = {
@@ -71,13 +75,25 @@ const ctx = {
   isNarrow, isMedium, isWide, leafEl,
   CARD_PAD, FONT_SM,
   _localConfig: localConfig,
+  markdownRenderer,
+  _srcDir: srcPrefix,
+  _adapter: {
+    readFile(path) { return app.vault.adapter.read(path); },
+    readFileAsync(path) { return app.vault.adapter.read(path); },
+    vaultBasePath() { return vaultBase; },
+  },
   intervals: [],
   cleanups: [],
   _paused: false,
 };
 
+// ── Load session manager ──
+ctx._sessionManagerCore = await (await loadModule("services/session-manager-core.js"))(ctx);
+ctx.sessionManager = await (await loadModule("services/session-manager-mobile.js"))(ctx);
+ctx.cleanups.push(() => ctx.sessionManager.cleanup());
+
 // ── Load network client service ──
-ctx.networkClient = (await loadModule("services/network-client.js"))(ctx);
+ctx.networkClient = await (await loadModule("services/network-client.js"))(ctx);
 
 // ── Abort if a newer execution has taken over ──
 if (container._jarvisRunId !== _runId) return;
@@ -133,7 +149,7 @@ header.appendChild(el("div", {
 wrapper.appendChild(header);
 
 // ── Load mobile voice command widget ──
-const voiceWidget = (await loadModule("widgets/jarvis-voice-command-mobile.js"))(ctx);
+const voiceWidget = await (await loadModule("widgets/voice-command/mobile.js"))(ctx);
 wrapper.appendChild(voiceWidget);
 
 // ── Pause all work when dashboard is not visible ──
