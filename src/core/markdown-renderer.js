@@ -364,10 +364,13 @@ function buildHighlightedCode(code, lang) {
 function buildCodeBlock(code, lang) {
   const wrapper = document.createElement("div");
   wrapper.className = "jarvis-code-block";
+  // Inline styles (CSS classes unreliable in Tauri WKWebView)
+  wrapper.style.cssText = "margin:8px 0;border-radius:8px;border:1px solid rgba(0,212,255,0.12);overflow:hidden;background:#080c14;";
 
   // Header with language + copy
   const header = document.createElement("div");
   header.className = "jarvis-code-header";
+  header.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:4px 12px;background:rgba(0,212,255,0.05);border-bottom:1px solid rgba(0,212,255,0.08);font-size:10px;letter-spacing:1px;text-transform:uppercase;";
 
   const langLabel = document.createElement("span");
   langLabel.textContent = lang || "code";
@@ -377,7 +380,9 @@ function buildCodeBlock(code, lang) {
   const copyBtn = document.createElement("span");
   copyBtn.className = "jarvis-code-copy";
   copyBtn.textContent = "copy";
-  copyBtn.style.color = T.textMuted;
+  copyBtn.style.cssText = "cursor:pointer;opacity:0.4;transition:opacity 0.2s;user-select:none;color:" + T.textMuted + ";";
+  copyBtn.addEventListener("mouseenter", () => { copyBtn.style.opacity = "1"; });
+  copyBtn.addEventListener("mouseleave", () => { copyBtn.style.opacity = "0.4"; });
   copyBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     navigator.clipboard.writeText(code).then(() => {
@@ -392,6 +397,7 @@ function buildCodeBlock(code, lang) {
   // Code area
   const pre = document.createElement("pre");
   pre.className = "jarvis-code-pre";
+  pre.style.cssText = "margin:0;padding:12px 16px;overflow-x:auto;font-size:inherit;font-family:inherit;line-height:1.5;white-space:pre;word-break:normal;background:transparent;";
   pre.appendChild(buildHighlightedCode(code, lang));
   wrapper.appendChild(pre);
 
@@ -517,12 +523,14 @@ function createStreamRenderer(container) {
     codeLang = lang;
     codeBuffer = "";
 
-    // Create live code block DOM
+    // Create live code block DOM (inline styles for Tauri WKWebView compatibility)
     codeBlockEl = document.createElement("div");
     codeBlockEl.className = "jarvis-code-block";
+    codeBlockEl.style.cssText = "margin:8px 0;border-radius:8px;border:1px solid rgba(0,212,255,0.12);overflow:hidden;background:#080c14;";
 
     const header = document.createElement("div");
     header.className = "jarvis-code-header";
+    header.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:4px 12px;background:rgba(0,212,255,0.05);border-bottom:1px solid rgba(0,212,255,0.08);font-size:10px;letter-spacing:1px;text-transform:uppercase;";
     const langLabel = document.createElement("span");
     langLabel.textContent = lang || "code";
     langLabel.style.color = T.textMuted;
@@ -531,7 +539,7 @@ function createStreamRenderer(container) {
     const copyBtn = document.createElement("span");
     copyBtn.className = "jarvis-code-copy";
     copyBtn.textContent = "copy";
-    copyBtn.style.color = T.textMuted;
+    copyBtn.style.cssText = "cursor:pointer;opacity:0.4;transition:opacity 0.2s;user-select:none;color:" + T.textMuted + ";";
     // Copy handler will be attached on finalize with final code
     header._copyBtn = copyBtn;
     header.appendChild(copyBtn);
@@ -539,6 +547,7 @@ function createStreamRenderer(container) {
 
     const pre = document.createElement("pre");
     pre.className = "jarvis-code-pre";
+    pre.style.cssText = "margin:0;padding:12px 16px;overflow-x:auto;font-size:inherit;font-family:inherit;line-height:1.5;white-space:pre;word-break:normal;background:transparent;";
     codeContentEl = document.createElement("code");
     codeContentEl.style.fontFamily = "inherit";
     codeContentEl.style.display = "block";
@@ -678,15 +687,17 @@ function createStreamRenderer(container) {
     },
 
     finalize() {
-      if (state === "IN_CODE_BLOCK" && codeBlockEl) {
-        // Stream ended mid-code-block — finalize what we have
-        finalizeCodeBlock();
-        state = "NORMAL";
-      }
-      if (pendingText) {
-        flushPlainText(pendingText);
-        pendingText = "";
-      }
+      // Re-render the entire buffer with full markdown support.
+      // During streaming, inline code and code blocks may be split across chunks
+      // and rendered as plain text. Re-rendering ensures correct formatting.
+      container.innerHTML = "";
+      container.appendChild(renderMarkdown(buffer));
+      state = "NORMAL";
+      pendingText = "";
+      codeBuffer = "";
+      currentTextWrap = null;
+      codeBlockEl = null;
+      codeContentEl = null;
     },
 
     getTextNodes() {

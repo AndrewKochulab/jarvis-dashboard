@@ -37,6 +37,10 @@ const stateListeners = [];
 function setState(newState) {
   state = newState;
   for (const cb of stateListeners) { try { cb(state); } catch {} }
+  // Report to native bridge (iOS)
+  if (typeof window !== "undefined" && window.__reportConnectionStatus) {
+    try { window.__reportConnectionStatus(newState); } catch {}
+  }
 }
 
 function on(type, fn) {
@@ -207,10 +211,18 @@ function stopHeartbeat() {
 if (typeof document !== "undefined") {
   const visHandler = () => {
     if (document.visibilityState === "visible") {
-      if (!ws || ws.readyState !== WS_OPEN) {
-        reconnectAttempt = 0; // Immediate reconnect on foreground
-        connect();
+      // Force-close any stale WebSocket (iOS may kill the connection in background
+      // without firing onclose, leaving ws in a broken state)
+      clearReconnectTimer();
+      intentionalDisconnect = false;
+      if (ws) {
+        try { ws.onclose = null; ws.onerror = null; ws.close(); } catch {}
+        ws = null;
       }
+      stopHeartbeat();
+      reconnectAttempt = 0;
+      setState("disconnected");
+      connect();
     }
   };
   document.addEventListener("visibilitychange", visHandler);
@@ -238,9 +250,9 @@ return {
   disconnect,
   send,
   sendBinary,
-  sendAudioStart: (format, sampleRate, sessionId) => send({ type: "audio_start", format, sampleRate, sessionId: sessionId || undefined }),
+  sendAudioStart: (format, sampleRate, sessionId, projectPath) => send({ type: "audio_start", format, sampleRate, sessionId: sessionId || undefined, projectPath: projectPath || undefined }),
   sendAudioEnd: () => send({ type: "audio_end" }),
-  sendTextCommand: (text, sessionId) => send({ type: "text_command", text, sessionId: sessionId || undefined }),
+  sendTextCommand: (text, sessionId, projectPath) => send({ type: "text_command", text, sessionId: sessionId || undefined, projectPath: projectPath || undefined }),
   sendCancel: () => send({ type: "cancel" }),
   sendNewSession: () => send({ type: "new_session" }),
   sendPing: () => send({ type: "ping" }),

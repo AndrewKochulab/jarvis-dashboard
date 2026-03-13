@@ -248,7 +248,7 @@ styleEl.textContent = `
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    padding: 7px 14px;
     cursor: pointer;
     white-space: nowrap;
     font-size: 10px;
@@ -256,12 +256,19 @@ styleEl.textContent = `
     letter-spacing: 0.5px;
     font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
     border-bottom: 2px solid transparent;
+    border-right: 1px solid rgba(0, 212, 255, 0.06);
     transition: all 0.15s ease;
     position: relative;
     flex-shrink: 0;
   }
+  .jarvis-tab:last-of-type {
+    border-right: none;
+  }
   .jarvis-tab:hover {
     background: rgba(255, 255, 255, 0.03);
+  }
+  .jarvis-tab[data-active="true"] {
+    background: rgba(0, 212, 255, 0.06);
   }
   .jarvis-tab .jarvis-tab-close {
     opacity: 0;
@@ -270,6 +277,7 @@ styleEl.textContent = `
     padding: 1px 3px;
     border-radius: 3px;
     line-height: 1;
+    margin-left: 4px;
   }
   .jarvis-tab:hover .jarvis-tab-close {
     opacity: 0.5;

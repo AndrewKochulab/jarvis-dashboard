@@ -1,7 +1,7 @@
-// Helper utilities: el(), formatters, describeAction
-// Returns: { el, fmtTokens, fmtCost, formatModel, describeAction, getModelFamily }
+// Helper utilities: el(), formatters, describeAction, addHoverEffect, createSectionTitle
+// Returns: { el, fmtTokens, fmtCost, formatModel, describeAction, getModelFamily, addHoverEffect, createSectionTitle }
 
-const { T } = ctx;
+const { T, isNarrow } = ctx;
 
 function el(tag, styles, text) {
   const e = document.createElement(tag);
@@ -66,4 +66,27 @@ function describeAction(toolName, input, stopReason) {
   return (map[toolName] || (() => `Using ${toolName}`))();
 }
 
-return { el, fmtTokens, fmtCost, formatModel, describeAction, getModelFamily };
+function addHoverEffect(element, hoverStyles, defaultStyles) {
+  element.addEventListener("mouseenter", () => Object.assign(element.style, hoverStyles));
+  element.addEventListener("mouseleave", () => Object.assign(element.style, defaultStyles));
+}
+
+function createSectionTitle(title, options = {}) {
+  const { color = T.accent, badge = null, marginBottom = "16px" } = options;
+  const row = el("div", { display: "flex", alignItems: "center", gap: "12px", marginBottom });
+  row.appendChild(el("div", { flex: "0 0 4px", height: "24px", background: color, borderRadius: "2px" }));
+  row.appendChild(el("span", {
+    fontSize: isNarrow ? "14px" : "18px", fontWeight: "700",
+    letterSpacing: "3px", textTransform: "uppercase", color: T.text,
+  }, title));
+  if (badge) {
+    row.appendChild(el("span", {
+      fontSize: badge.fontSize || "11px", fontWeight: "600",
+      color: badge.color || T.accent, background: badge.bg || "rgba(0,212,255,0.1)",
+      padding: "2px 10px", borderRadius: "10px", letterSpacing: "1px",
+    }, badge.text));
+  }
+  return row;
+}
+
+return { el, fmtTokens, fmtCost, formatModel, describeAction, getModelFamily, addHoverEffect, createSectionTitle };
