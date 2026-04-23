@@ -7,7 +7,9 @@ const { spawn } = require("child_process");
 
 const voiceCfg = config.widgets?.quickCapture?.voice || {};
 const langCfg = config.language || {};
-const sttMode = langCfg.stt || voiceCfg.lang || "en";
+const VALID_WHISPER_LANGS = new Set(["auto","en","zh","de","es","ru","ko","fr","ja","pt","tr","pl","ca","nl","ar","sv","it","id","hi","fi","vi","he","uk","el","ms","cs","ro","da","hu","ta","no","th","ur","hr","bg","lt","la","mi","cy","sk","te","fa","lv","bn","sr","az","sl","kn","et","mk","br","eu","is","hy","ne","mn","bs","kk","sq","sw","gl","mr","pa","si","km","sn","yo","so","af","oc","ka","be","tg","sd","gu","am","yi","lo","uz","fo","ht","ps","tk","nn","mt","sa","lb","my","bo","tl","mg","as","tt","haw","ln","ha","ba","jw","su"]);
+const rawSttMode = langCfg.stt || voiceCfg.lang || "en";
+const sttMode = VALID_WHISPER_LANGS.has(rawSttMode) ? rawSttMode : "en";
 const voiceLang = sttMode; // "auto" or specific language code
 
 const whisperSearchPaths = ["/opt/homebrew/bin/whisper-cli", "/usr/local/bin/whisper-cli"];
@@ -103,7 +105,7 @@ async function stopAndTranscribe() {
   const resampled = await offlineCtx.startRendering();
   const float32 = resampled.getChannelData(0);
 
-  const tmpPath = nodePath.join(require("os").tmpdir(), "jarvis-voice-capture.wav");
+  const tmpPath = nodePath.join(require("os").tmpdir(), `jarvis-voice-${require("crypto").randomBytes(8).toString("hex")}.wav`);
   nodeFs.writeFileSync(tmpPath, buildWav(float32, 16000));
 
   return new Promise((resolve, reject) => {

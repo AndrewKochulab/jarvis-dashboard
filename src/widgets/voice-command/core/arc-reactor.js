@@ -35,6 +35,109 @@ function createArcReactor(options) {
   });
   section.appendChild(btnContainer);
 
+  // ── Neural network canvas ──
+  const nnCanvas = document.createElement("canvas");
+  nnCanvas.width = outerSize;
+  nnCanvas.height = outerSize;
+  Object.assign(nnCanvas.style, {
+    position: "absolute",
+    top: "0", left: "0",
+    width: outerSize + "px", height: outerSize + "px",
+    borderRadius: "50%",
+    pointerEvents: "none",
+    opacity: "0.55",
+    zIndex: "1",
+  });
+  btnContainer.appendChild(nnCanvas);
+
+  const nnCtx = nnCanvas.getContext("2d");
+  const cx = outerSize / 2, cy = outerSize / 2;
+
+  // Node layout: 3 layers — 3 input, 4 hidden, 3 output — arranged in a circle region
+  const layers = [
+    [{ x: cx - outerSize * 0.30, y: cy - outerSize * 0.22 }, { x: cx - outerSize * 0.33, y: cy }, { x: cx - outerSize * 0.30, y: cy + outerSize * 0.22 }],
+    [{ x: cx - outerSize * 0.10, y: cy - outerSize * 0.30 }, { x: cx - outerSize * 0.10, y: cy - outerSize * 0.10 }, { x: cx - outerSize * 0.10, y: cy + outerSize * 0.10 }, { x: cx - outerSize * 0.10, y: cy + outerSize * 0.30 }],
+    [{ x: cx + outerSize * 0.12, y: cy - outerSize * 0.22 }, { x: cx + outerSize * 0.12, y: cy }, { x: cx + outerSize * 0.12, y: cy + outerSize * 0.22 }],
+    [{ x: cx + outerSize * 0.30, y: cy - outerSize * 0.10 }, { x: cx + outerSize * 0.30, y: cy + outerSize * 0.10 }],
+  ];
+
+  // Build edge list
+  const edges = [];
+  for (let l = 0; l < layers.length - 1; l++) {
+    for (const a of layers[l]) {
+      for (const b of layers[l + 1]) {
+        edges.push({ a, b, phase: Math.random() * Math.PI * 2, speed: 0.4 + Math.random() * 0.6 });
+      }
+    }
+  }
+
+  let nnActivity = 0; // 0 = idle, 1 = full activity
+  let nnTime = 0;
+  let nnRaf = null;
+
+  const accentColor = T.accent; // e.g. #00d4ff
+
+  function hexToRgb(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `${r},${g},${b}`;
+  }
+  const accentRgb = hexToRgb(accentColor);
+  const purpleRgb = hexToRgb(T.purple || "#7c6bff");
+
+  function drawNN() {
+    nnCtx.clearRect(0, 0, outerSize, outerSize);
+    const speed = 0.8 + nnActivity * 3.5;
+    nnTime += 0.016 * speed;
+
+    // Edges
+    for (const e of edges) {
+      const pulse = (Math.sin(nnTime * e.speed + e.phase) + 1) / 2;
+      const alpha = (0.08 + pulse * 0.28 * (0.3 + nnActivity * 0.7)).toFixed(3);
+      nnCtx.beginPath();
+      nnCtx.moveTo(e.a.x, e.a.y);
+      nnCtx.lineTo(e.b.x, e.b.y);
+      nnCtx.strokeStyle = `rgba(${accentRgb},${alpha})`;
+      nnCtx.lineWidth = 0.8;
+      nnCtx.stroke();
+
+      // Traveling dot along active edges
+      if (nnActivity > 0.1) {
+        const t = (Math.sin(nnTime * e.speed * 1.4 + e.phase) + 1) / 2;
+        const dx = e.b.x - e.a.x, dy = e.b.y - e.a.y;
+        const dotX = e.a.x + dx * t, dotY = e.a.y + dy * t;
+        const dotAlpha = (nnActivity * pulse * 0.9).toFixed(3);
+        nnCtx.beginPath();
+        nnCtx.arc(dotX, dotY, 1.5, 0, Math.PI * 2);
+        nnCtx.fillStyle = `rgba(${accentRgb},${dotAlpha})`;
+        nnCtx.fill();
+      }
+    }
+
+    // Nodes
+    for (let l = 0; l < layers.length; l++) {
+      for (const n of layers[l]) {
+        const pulse = (Math.sin(nnTime * 0.9 + n.x * 0.05) + 1) / 2;
+        const r = 3 + pulse * 1.5 * (0.4 + nnActivity * 0.6);
+        const alpha = (0.25 + pulse * 0.55 * (0.3 + nnActivity * 0.7)).toFixed(3);
+        const rgb = l === 0 ? accentRgb : l === layers.length - 1 ? purpleRgb : accentRgb;
+        nnCtx.beginPath();
+        nnCtx.arc(n.x, n.y, r, 0, Math.PI * 2);
+        nnCtx.fillStyle = `rgba(${rgb},${alpha})`;
+        nnCtx.fill();
+      }
+    }
+
+    nnRaf = requestAnimationFrame(drawNN);
+  }
+
+  if (animationsEnabled) drawNN();
+
+  function setNNActivity(level) {
+    nnActivity = Math.max(0, Math.min(1, level));
+  }
+
   // ── Outer rotating ring ──
   const outerRing = el("div", {
     position: "absolute",
@@ -194,6 +297,9 @@ function createArcReactor(options) {
 
   // ── Visual state mapping ──
   function updateVisualState(uiState, hasHistory) {
+    const activityMap = { idle: 0.1, recording: 0.6, transcribing: 0.5, launching: 0.4, streaming: 1.0, done: 0.1, error: 0.05 };
+    setNNActivity(activityMap[uiState] ?? 0.1);
+
     if (uiState === "idle") {
       coreIcon.style.display = "inline";
       stateIcon.style.display = "none";
@@ -359,6 +465,8 @@ function createArcReactor(options) {
     hidePreview,
     onPointerAction,
     firePointerAction,
+    setNNActivity,
+    cleanup() { if (nnRaf) cancelAnimationFrame(nnRaf); },
     el: { section, btnContainer, core, coreIcon, stateIcon, timerEl, statusText, previewEl },
   };
 }

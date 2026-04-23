@@ -146,7 +146,7 @@ function createPiperEngine(binaryPath, modelPath, piperCfg, speakerId) {
   return {
     speak(text, onDone) {
       const myEpoch = ++_epoch;
-      const tmpFile = `/tmp/jarvis-tts-${Date.now()}.wav`;
+      const tmpFile = require("path").join(require("os").tmpdir(), `jarvis-tts-${require("crypto").randomBytes(8).toString("hex")}.wav`);
       piperProc = spawn(binaryPath, [...baseArgs, "--output_file", tmpFile]);
       piperProc.stdin.write(text);
       piperProc.stdin.end();
